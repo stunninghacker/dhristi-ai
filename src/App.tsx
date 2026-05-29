@@ -16,7 +16,7 @@ import HowItWorks from "./components/HowItWorks";
 import SolutionSummary from "./components/SolutionSummary";
 import BeforeAfterSlider from "./components/BeforeAfterSlider";
 import { SpinnerIcon, PlayIcon, SatelliteIcon, CheckCircleIcon } from "./components/Icons";
-import { analysePair, loadImageFromFile, generateDemoImages, canvasToDataURL } from "./engine";
+import { analysePair, loadImageFromFile } from "./engine";
 import { extractGeoMetadata } from "./geospatial";
 import type { AnalysisResult, ProfileKey, ActiveTab, GeoReferencePair, ValidationGroundTruth, TimelineMetadata } from "./types";
 import { extractExifDate } from "./utils/exifDate";
@@ -29,6 +29,16 @@ import type { AuditLogEntry } from "./utils/auditLog";
 import AuditLogPanel from "./components/AuditLogPanel";
 import MilitaryHeader from "./components/MilitaryHeader";
 import SpatialIntelligencePanel from "./components/SpatialIntelligencePanel";
+
+function loadImageFromUrl(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error(`Failed to load: ${url}`));
+    img.crossOrigin = "anonymous";
+    img.src = url;
+  });
+}
 
 export default function App() {
   // ── Sidebar parameters ──
@@ -129,11 +139,14 @@ export default function App() {
       };
 
       if (useDemo) {
-        const [c1, c2] = generateDemoImages();
-        img1 = c1; img2 = c2;
-        // Set preview from demo canvases
-        setPreview1(canvasToDataURL(c1));
-        setPreview2(canvasToDataURL(c2));
+        const [imgA, imgB] = await Promise.all([
+          loadImageFromUrl("/demo/lko_before.jpeg"),
+          loadImageFromUrl("/demo/lko_after.jpeg"),
+        ]);
+        img1 = imgA; img2 = imgB;
+        setPreview1(imgA.src);
+        setPreview2(imgB.src);
+        timeline = { baselineDate: "May 2025", recentDate: "May 2026" };
       } else if (file1 && file2) {
         const [loadedT1, loadedT2, baselineGeo, recentGeo, baselineDate, recentDate] = await Promise.all([
           loadImageFromFile(file1),
@@ -426,6 +439,18 @@ export default function App() {
               />
             </div>
 
+            {/* Demo image captions */}
+            {useDemo && preview1 && preview2 && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: -8, marginBottom: 16 }}>
+                <div style={{ color: "#4fc3ff", fontSize: 12, fontWeight: 600, fontFamily: "monospace", paddingLeft: 4 }}>
+                  lko_before.jpeg — Lucknow, May 2025
+                </div>
+                <div style={{ color: "#4fc3ff", fontSize: 12, fontWeight: 600, fontFamily: "monospace", paddingLeft: 4 }}>
+                  lko_after.jpeg — Lucknow, May 2026
+                </div>
+              </div>
+            )}
+
             {/* Coordinate input */}
             <div style={{ display: "flex", gap: 16, marginBottom: 16, alignItems: "flex-end" }}>
               <div style={{ flex: 1 }}>
@@ -481,9 +506,18 @@ export default function App() {
               <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", userSelect: "none" }}>
                 <input
                   type="checkbox" checked={useDemo}
-                  onChange={e => setUseDemo(e.target.checked)}
+                  onChange={e => {
+                    setUseDemo(e.target.checked);
+                    if (e.target.checked) {
+                      setTopLeftCoord("26.8467, 80.9462");
+                      setBottomRightCoord("26.8200, 80.9750");
+                    }
+                  }}
                 />
-                <span style={{ color: "#9fb5cc", fontSize: 13 }}>Use built-in synthetic demo images</span>
+                <span style={{ color: "#9fb5cc", fontSize: 13 }}>
+                  Use built-in demo images<br />
+                  <span style={{ fontSize: 11, color: "#4a6a85" }}>(Lucknow Urban Area — Multi-temporal Satellite Analysis)</span>
+                </span>
               </label>
 
               <button
