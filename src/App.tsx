@@ -27,6 +27,8 @@ import { getAuditLog, appendAuditLog } from "./utils/auditLog";
 import { parseGeoBounds, pixelToLatLng } from "./utils/geoBounds";
 import type { AuditLogEntry } from "./utils/auditLog";
 import AuditLogPanel from "./components/AuditLogPanel";
+import MilitaryHeader from "./components/MilitaryHeader";
+import SpatialIntelligencePanel from "./components/SpatialIntelligencePanel";
 
 export default function App() {
   // ── Sidebar parameters ──
@@ -265,7 +267,9 @@ export default function App() {
   const highFlagCount = result ? result.highPriorityFlags : 0;
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "#080d16" }}>
+    <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh", background: "#080d16" }}>
+      <MilitaryHeader />
+      <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
       {/* Desktop sidebar */}
       {!isMobile && (
         <Sidebar
@@ -858,6 +862,12 @@ export default function App() {
                 />
                 <TimelineAnalysis result={result} />
 
+                <SpatialIntelligencePanel
+                  result={result}
+                  topLeftCoord={topLeftCoord}
+                  bottomRightCoord={bottomRightCoord}
+                />
+
                 {/* Export */}
                 <SectionHeader label="Export Report" />
                 <div style={{
@@ -914,6 +924,7 @@ export default function App() {
         )}
       </main>
 
+    </div>
     </div>
   );
 }

@@ -37,6 +37,15 @@ function formatAreaM2(areaM2: number | null): string {
   return areaM2 === null ? "" : areaM2.toFixed(2);
 }
 
+function classifyDetection(areaPx: number, compactness: number): string {
+  if (compactness < 0.25) return "MOVEMENT CORRIDOR";
+  if (areaPx > 1200 && compactness < 0.45) return "TERRAIN CHANGE";
+  if (areaPx < 400 && compactness > 0.55) return "VEHICLE/EQUIPMENT";
+  if (areaPx > 800) return "INFRASTRUCTURE";
+  if (compactness > 0.75) return "FORTIFICATION";
+  return "UNKNOWN OBJECT";
+}
+
 export default function ExportSection({
   result,
   validationMetrics,
@@ -190,6 +199,11 @@ export default function ExportSection({
 
       const headerId = `${caseReference || "N/A"} / ${result.timestampUtc.replace(/[/:]/g, "-")}`;
 
+      // ── Page background ──
+      doc.setFillColor(8, 13, 22);
+      doc.rect(0, 0, 210, 297, "F");
+
+      // ── Security banner ──
       if (secureMode) {
         doc.setFontSize(7);
         doc.setFont("helvetica", "bold");
@@ -199,182 +213,235 @@ export default function ExportSection({
         y += 6;
       }
 
-      doc.setFillColor(8, 13, 22);
-      doc.rect(0, 0, 210, 297, "F");
+      // ═══════════════════════════════════════════════
+      // HEADER
+      // ═══════════════════════════════════════════════
       doc.setDrawColor(56, 189, 248);
       doc.setLineWidth(1.2);
-      doc.line(ML, y - 4, ML + TW, y - 4);
+      doc.line(ML, y, ML + TW, y);
+      y += 4;
 
-      line("AI-BASED SATELLITE INTELLIGENCE SYSTEM", 18, true, [255, 255, 255]);
-      line("Formal Analysis Report", 10, false, [139, 163, 189]);
+      line("DHRISTI INTELLIGENCE REPORT", 20, true, [255, 255, 255]);
+      line(`Classification: ${secureMode ? classificationLevel : "UNCLASSIFIED"} // FOR TRAINING USE ONLY`, 8, false, [251, 191, 36]);
       gap(2);
       doc.setDrawColor(30, 53, 84);
       doc.setLineWidth(0.4);
       doc.line(ML, y, ML + TW, y);
-      gap(5);
-
-      line(`Report ID: ${reportId || "N/A"}`, 9, false, [139, 163, 189]);
-      line(`Document ID: ${headerId}`, 9, false, [139, 163, 189]);
-      line(`Analyst: ${analystName || "Unnamed"}`, 9, false, [139, 163, 189]);
-      line(`Organization: ${analystOrg || "N/A"}`, 9, false, [139, 163, 189]);
-      line(`Case Ref: ${caseReference || "N/A"}`, 9, false, [139, 163, 189]);
-      line(`Profile: ${result.profile}`, 9, false, [139, 163, 189]);
       gap(4);
+      line(`Report ID: ${reportId || "N/A"}`, 9, false, [180, 200, 220]);
+      line(`Date/Time: ${result.timestampUtc} UTC`, 9, false, [180, 200, 220]);
+      line(`Analyst: ${analystName || "Unnamed"}`, 9, false, [180, 200, 220]);
+      line(`Organization: ${analystOrg || "N/A"}`, 9, false, [180, 200, 220]);
+      line(`Profile: ${result.profile}`, 9, false, [180, 200, 220]);
+      gap(6);
 
-      line("ANALYSIS SUMMARY", 12, true, [56, 189, 248]);
-      gap(1);
-      const summaryItems = [
-        ["Analysis priority", result.analysisPriority],
-        [result.sceneComparability === "VERY LOW" ? "Review surface" : "Changed area", `${result.changedAreaPct.toFixed(3)}%`],
-        [result.sceneComparability === "VERY LOW" ? "Review regions" : "Detections", String(result.detectionCount)],
-        ["Visual flags", String(visualFlagCount)],
-        ["Max score", `${result.maxScore}/100`],
-        ["Confidence", `${result.confidence}/100`],
-        ["SSIM", result.ssim.toFixed(4)],
-        ["Reliability", result.reliability],
-        ["Scene comparability", result.sceneComparability],
-        ["Gate applied", result.reliabilityGateApplied ? "true" : "false"],
-        ["Preliminary mode", result.preliminaryMode ? "true" : "false"],
-        ["Manual verification", result.manualVerificationRequired ? "true" : "false"],
-        ["Detections confirmed", result.detectionsAreConfirmed ? "true" : "false"],
-        ["Geo metadata", result.geoMetadata.available ? "Available" : "Not available"],
-        ["Geo CRS", result.geoMetadata.crs ?? ""],
-        ["Visible region limit", String(result.visibleRegionLimit)],
-        ["Total review regions", String(result.totalReviewRegions)],
-        ["Alignment score", `${result.alignmentScore}/100`],
-        ["Brightness delta", String(result.brightnessDelta)],
-        ["Contrast delta", String(result.contrastDelta)],
+      // ═══════════════════════════════════════════════
+      // 1. EXECUTIVE SUMMARY
+      // ═══════════════════════════════════════════════
+      line("1. EXECUTIVE SUMMARY", 13, true, [56, 189, 248]);
+      gap(2);
+      doc.setDrawColor(56, 189, 248);
+      doc.setLineWidth(0.3);
+      doc.line(ML, y, ML + 24, y);
+      gap(3);
+
+      const imagePairDesc = result.timeline
+        ? `${result.timeline.baselineDate || "T1"} / ${result.timeline.recentDate || "T2"}`
+        : "the provided satellite imagery";
+      const summarySentences = [
+        `Analysis of ${imagePairDesc} identified ${result.detectionCount} object(s) across ${result.changedAreaPct.toFixed(3)}% of the scene.`,
+        `Confidence rating: ${result.confidence}/100. Reliability tier: ${result.reliability}.`,
+        `This assessment is based on automated SSIM-based change detection and requires human analyst verification before operational use.`,
       ];
-      for (const [k, v] of summaryItems) {
-        doc.setFontSize(9);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(127, 183, 229);
-        doc.text(safeText(`${k}:`), ML, y);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(230, 242, 255);
-        doc.text(safeText(v), ML + 55, y);
-        y += 5.5;
-      }
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(127, 183, 229);
-      doc.text("Scoring note:", ML, y);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(230, 242, 255);
-      const scoringLines = doc.splitTextToSize(safeText(result.scoringNote), TW - 55);
-      for (const l of scoringLines) {
-        doc.text(l, ML + 55, y);
-        y += 5;
-        if (y > 270) { doc.addPage(); y = 20; }
-      }
-      gap(4);
-
-      line("VALIDATION METRICS", 12, true, [56, 189, 248]);
-      gap(1);
-      const validationItems = [
-        ["SSIM score", validationMetrics.ssimScore.toFixed(4)],
-        ["Mean absolute difference", `${validationMetrics.meanAbsoluteDifference.toFixed(2)} intensity units`],
-        ["PSNR", validationMetrics.psnr === null ? "Infinity dB" : `${validationMetrics.psnr.toFixed(2)} dB`],
-        ["Registration shift", `X: ${validationMetrics.registrationShift[0]}px, Y: ${validationMetrics.registrationShift[1]}px`],
-        ["Review region density", `${validationMetrics.reviewRegionDensityPct.toFixed(3)}%`],
-        ["Confidence band", validationMetrics.confidenceBand],
-        ["Confidence score", `${validationMetrics.confidenceScore}/100`],
-        ["Manual verification required", validationMetrics.manualVerificationRequired ? "Yes" : "No"],
-        ["True positives", valueOrBlank(validationMetrics.groundTruth.truePositives)],
-        ["False positives", valueOrBlank(validationMetrics.groundTruth.falsePositives)],
-        ["False negatives", valueOrBlank(validationMetrics.groundTruth.falseNegatives)],
-        ["Precision", metricOrBlank(validationMetrics.precision)],
-        ["Recall", metricOrBlank(validationMetrics.recall)],
-        ["F1 score", metricOrBlank(validationMetrics.f1Score)],
-      ];
-      for (const [k, v] of validationItems) {
-        doc.setFontSize(9);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(127, 183, 229);
-        doc.text(safeText(`${k}:`), ML, y);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(230, 242, 255);
-        doc.text(safeText(v), ML + 55, y);
-        y += 5.5;
-        if (y > 270) { doc.addPage(); y = 20; }
-      }
-      gap(4);
-
-      line("QUALITY & RELIABILITY NOTES", 12, true, [56, 189, 248]);
-      gap(1);
-      if (reliabilityPossibleCauses.length > 0) {
-        doc.setFontSize(9);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(253, 230, 138);
-        const explanation = doc.splitTextToSize(
-          "Low scene comparability may reflect one or more unmeasured factors. The following items are possible causes only.",
-          TW,
-        );
-        for (const l of explanation) {
-          doc.text(l, ML, y);
-          y += 5;
-          if (y > 270) { doc.addPage(); y = 20; }
-        }
-        for (const { status, cause } of reliabilityPossibleCauses) {
-          doc.setTextColor(200, 220, 240);
-          doc.text(safeText(`- ${status}: ${cause}`), ML, y);
-          y += 5;
-          if (y > 270) { doc.addPage(); y = 20; }
-        }
-        gap(2);
-      }
-      for (const note of result.qualityNotes) {
-        doc.setFontSize(9);
+      for (const s of summarySentences) {
+        doc.setFontSize(9.5);
         doc.setFont("helvetica", "normal");
         doc.setTextColor(200, 220, 240);
-        const wrapped = doc.splitTextToSize(safeText(`- ${note}`), TW);
+        const wrapped = doc.splitTextToSize(safeText(s), TW);
         for (const l of wrapped) {
           doc.text(l, ML, y);
           y += 5;
           if (y > 270) { doc.addPage(); y = 20; }
         }
+        gap(1);
       }
       gap(4);
 
-      if (result.detections.length > 0) {
-        line("DETECTION LOG", 12, true, [56, 189, 248]);
-        gap(1);
+      // ═══════════════════════════════════════════════
+      // 2. DETECTED OBJECTS TABLE
+      // ═══════════════════════════════════════════════
+      line("2. DETECTED OBJECTS", 13, true, [56, 189, 248]);
+      gap(2);
+      doc.setDrawColor(56, 189, 248);
+      doc.setLineWidth(0.3);
+      doc.line(ML, y, ML + 24, y);
+      gap(3);
+
+      if (result.detections.length === 0) {
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "italic");
+        doc.setTextColor(180, 200, 220);
+        doc.text("No objects detected above the selected threshold.", ML, y);
+        y += 6;
+      } else {
+        const colX = [ML, ML + 10, ML + 50, ML + 80, ML + 105, ML + 130, ML + 165];
+        const headers = ["#", "Object Type", "Priority", "Score", "Coord X", "Coord Y"];
+        const hdrColor: [number, number, number] = [56, 189, 248];
+        doc.setFontSize(8.5);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(...hdrColor);
+        for (let i = 0; i < headers.length; i++) {
+          doc.text(safeText(headers[i]), colX[i], y);
+        }
+        y += 5.5;
+        doc.setDrawColor(56, 189, 248);
+        doc.setLineWidth(0.2);
+        doc.line(ML, y, ML + TW, y);
+        y += 2;
+
         for (const d of result.detections) {
-          const noteStr = d.analystNote ? ` | Note: ${d.analystNote}` : "";
-          const assessment = result.sceneComparability === "VERY LOW" ? " | Not confirmed change" : "";
-          const regionLabel = result.sceneComparability === "VERY LOW" ? "Review region" : "Zone";
-          const geoCenter = d.geoCenter ? ` | geo_center ${formatGeoPoint(d.geoCenter)}` : "";
-          const areaM2 = d.areaM2 === null ? "" : ` | area_m2 ${formatAreaM2(d.areaM2)}`;
-          const analystDecision = ` | Decision: ${d.analystDecision}`;
-          const reviewed = ` | Reviewed: ${d.reviewed ? "true" : "false"}`;
-          const entry = `[${regionLabel} ${d.id}] ${d.type} | ${d.priority} | score ${d.score} | area ${d.areaPx}px | MGRS ${d.gridRef}${geoCenter}${areaM2}${assessment}${analystDecision}${reviewed}${noteStr}`;
+          const objType = classifyDetection(d.areaPx, d.compactness);
+          const row = [
+            String(d.id),
+            objType,
+            d.priority,
+            `${d.score}/100`,
+            String(Math.round(d.pixelCenter[0])),
+            String(Math.round(d.pixelCenter[1])),
+          ];
+          doc.setFontSize(8);
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(200, 220, 240);
+          for (let i = 0; i < row.length; i++) {
+            doc.text(safeText(row[i]), colX[i], y);
+          }
+          y += 5;
+          if (y > 270) { doc.addPage(); y = 20; }
+        }
+      }
+      gap(5);
+
+      // ═══════════════════════════════════════════════
+      // 3. CHANGE ANALYSIS
+      // ═══════════════════════════════════════════════
+      if (y > 240) { doc.addPage(); y = 20; }
+      line("3. CHANGE ANALYSIS METRICS", 13, true, [56, 189, 248]);
+      gap(2);
+      doc.setDrawColor(56, 189, 248);
+      doc.setLineWidth(0.3);
+      doc.line(ML, y, ML + 24, y);
+      gap(3);
+
+      const changeMetrics: [string, string][] = [
+        ["SSIM Score", result.ssim.toFixed(4)],
+        ["Mean Absolute Difference (MAD)", `${validationMetrics.meanAbsoluteDifference.toFixed(2)} intensity units`],
+        ["PSNR", validationMetrics.psnr === null ? "Infinity dB" : `${validationMetrics.psnr.toFixed(2)} dB`],
+        ["Registration Shift", `X: ${validationMetrics.registrationShift[0]}px, Y: ${validationMetrics.registrationShift[1]}px`],
+        ["Changed Area", `${result.changedAreaPct.toFixed(3)}% of scene`],
+        ["Max Detection Score", `${result.maxScore}/100`],
+        ["Detection Count", String(result.detectionCount)],
+        ["Alignment Score", `${result.alignmentScore}/100`],
+        ["Brightness Delta", String(result.brightnessDelta)],
+        ["Contrast Delta", String(result.contrastDelta)],
+      ];
+      doc.setFontSize(8.5);
+      for (const [k, v] of changeMetrics) {
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(127, 183, 229);
+        doc.text(safeText(k), ML, y);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(200, 220, 240);
+        doc.text(safeText(v), ML + 90, y);
+        y += 5.5;
+        if (y > 270) { doc.addPage(); y = 20; }
+      }
+      gap(5);
+
+      // ── Scene imagery ──
+      line("SCENE IMAGERY", 12, true, [56, 189, 248]);
+      gap(3);
+      const imgW = 44;
+      const imgH = 48;
+      if (result.images.baseImage) doc.addImage(result.images.baseImage, "JPEG", ML, y, imgW, imgH);
+      if (result.images.recentImage) doc.addImage(result.images.recentImage, "JPEG", ML + imgW + 4, y, imgW, imgH);
+      if (result.images.annotatedImage) doc.addImage(result.images.annotatedImage, "JPEG", ML + (imgW + 4) * 2, y, imgW, imgH);
+      if (result.images.heatmapImage) doc.addImage(result.images.heatmapImage, "JPEG", ML + (imgW + 4) * 3, y, imgW, imgH);
+      y += imgH + 4;
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "italic");
+      doc.setTextColor(100, 130, 160);
+      doc.text("Base Image    Recent Image    Annotated    Heatmap", ML, y);
+      gap(8);
+
+      // ═══════════════════════════════════════════════
+      // QUALITY NOTES
+      // ═══════════════════════════════════════════════
+      if (result.qualityNotes.length > 0) {
+        line("QUALITY NOTES", 11, true, [56, 189, 248]);
+        gap(1);
+        for (const note of result.qualityNotes) {
           doc.setFontSize(8.5);
           doc.setFont("helvetica", "normal");
           doc.setTextColor(200, 220, 240);
-          const wrapped = doc.splitTextToSize(safeText(entry), TW);
+          const wrapped = doc.splitTextToSize(safeText(`- ${note}`), TW);
           for (const l of wrapped) {
             doc.text(l, ML, y);
             y += 5;
             if (y > 270) { doc.addPage(); y = 20; }
           }
-          gap(1);
         }
+        gap(4);
       }
 
-      gap(6);
-      if (y > 220) { doc.addPage(); y = 20; }
-      line("SCENE IMAGERY OVERVIEW", 12, true, [56, 189, 248]);
+      // ═══════════════════════════════════════════════
+      // 4. ANALYST ASSESSMENT
+      // ═══════════════════════════════════════════════
+      if (y > 230) { doc.addPage(); y = 20; }
+      line("4. ANALYST ASSESSMENT", 13, true, [56, 189, 248]);
+      gap(2);
+      doc.setDrawColor(56, 189, 248);
+      doc.setLineWidth(0.3);
+      doc.line(ML, y, ML + 24, y);
+      gap(3);
+
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "italic");
+      doc.setTextColor(127, 183, 229);
+      doc.text("Manual notes and assessment:", ML, y);
+      y += 5;
+      doc.setDrawColor(56, 189, 248);
+      doc.setLineWidth(0.3);
+      doc.setFillColor(10, 20, 35);
+      doc.roundedRect(ML, y, TW, 40, 2, 2, "FD");
+      y += 44;
       gap(2);
 
-      const imgW = 46;
-      const imgH = 50;
+      // ═══════════════════════════════════════════════
+      // 5. DISCLAIMER
+      // ═══════════════════════════════════════════════
+      if (y > 240) { doc.addPage(); y = 20; }
+      line("5. DISCLAIMER", 13, true, [56, 189, 248]);
+      gap(2);
+      doc.setDrawColor(56, 189, 248);
+      doc.setLineWidth(0.3);
+      doc.line(ML, y, ML + 24, y);
+      gap(3);
 
-      if (result.images.baseImage) doc.addImage(result.images.baseImage, "JPEG", 12, y, imgW, imgH);
-      if (result.images.recentImage) doc.addImage(result.images.recentImage, "JPEG", 62, y, imgW, imgH);
-      if (result.images.annotatedImage) doc.addImage(result.images.annotatedImage, "JPEG", 112, y, imgW, imgH);
-      if (result.images.heatmapImage) doc.addImage(result.images.heatmapImage, "JPEG", 162, y, imgW, imgH);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "italic");
+      doc.setTextColor(180, 200, 220);
+      const disclaimer = "This report was generated by automated AI analysis. All findings require human analyst verification before operational use.";
+      const disclaimerWrapped = doc.splitTextToSize(safeText(disclaimer), TW);
+      for (const l of disclaimerWrapped) {
+        doc.text(l, ML, y);
+        y += 5;
+      }
 
-      y += imgH + 8;
+      y = Math.max(y, 275);
+      doc.setFontSize(6);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(80, 110, 140);
+      doc.text(safeText(`DHRISTI — Defence Satellite Intelligence Platform — Report ${reportId || "N/A"} — ${result.timestampUtc}`), ML, y);
 
       doc.save("satellite_analysis_report.pdf");
     } catch (e) {
@@ -533,10 +600,4 @@ function Expander({ label, open, onToggle, children }: {
   );
 }
 
-function valueOrBlank(value: number | null): string {
-  return value === null ? "" : String(value);
-}
 
-function metricOrBlank(value: number | null): string {
-  return value === null ? "" : value.toFixed(4);
-}

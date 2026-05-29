@@ -10,6 +10,27 @@ interface Props {
   onAnalystWorkflowChange: () => void;
 }
 
+const DEFENCE_LABELS = ["VEHICLE/EQUIPMENT", "INFRASTRUCTURE", "FORTIFICATION", "MOVEMENT CORRIDOR", "TERRAIN CHANGE", "UNKNOWN OBJECT"] as const;
+
+const BADGE_COLORS: Record<string, { bg: string; fg: string; border: string }> = {
+  "VEHICLE/EQUIPMENT":  { bg: "rgba(245,158,11,0.15)", fg: "#f59e0b", border: "rgba(245,158,11,0.3)" },
+  "INFRASTRUCTURE":     { bg: "rgba(56,189,248,0.15)", fg: "#38bdf8", border: "rgba(56,189,248,0.3)" },
+  "FORTIFICATION":      { bg: "rgba(251,71,101,0.15)", fg: "#fb4765", border: "rgba(251,71,101,0.3)" },
+  "MOVEMENT CORRIDOR":  { bg: "rgba(249,115,22,0.15)", fg: "#f97316", border: "rgba(249,115,22,0.3)" },
+  "TERRAIN CHANGE":     { bg: "rgba(52,211,153,0.15)", fg: "#34d399", border: "rgba(52,211,153,0.3)" },
+  "UNKNOWN OBJECT":     { bg: "rgba(148,163,184,0.15)", fg: "#94a3b8", border: "rgba(148,163,184,0.3)" },
+};
+
+function classifyDetection(d: Detection): string {
+  const { areaPx, compactness } = d;
+  if (compactness < 0.25) return "MOVEMENT CORRIDOR";
+  if (areaPx > 1200 && compactness < 0.45) return "TERRAIN CHANGE";
+  if (areaPx < 400 && compactness > 0.55) return "VEHICLE/EQUIPMENT";
+  if (areaPx > 800) return "INFRASTRUCTURE";
+  if (compactness > 0.75) return "FORTIFICATION";
+  return "UNKNOWN OBJECT";
+}
+
 const ANALYST_DECISIONS: AnalystDecision[] = [
   "Pending review",
   "Confirmed change",
@@ -54,7 +75,7 @@ export default function DetectionTable({
       list = list.filter(d => d.score <= 70);
     }
     if (typeFilter && typeFilter !== "all") {
-      list = list.filter(d => d.objectType === typeFilter);
+      list = list.filter(d => classifyDetection(d) === typeFilter);
     }
 
     if (sortByConfidence) {
@@ -140,8 +161,9 @@ export default function DetectionTable({
           </div>
 
           <div style={{ display: "flex", background: "#060a12", border: "1px solid #1c3554", borderRadius: 8, padding: 2 }}>
-            {(["all", "Structure", "Vegetation", "Water", "Urban Expansion", "Unknown"] as const).map((t) => {
+            {(["all", ...DEFENCE_LABELS] as const).map((t) => {
               const active = (typeFilter ?? "all") === t;
+              const colors = t !== "all" ? BADGE_COLORS[t] : null;
               return (
                 <button
                   key={t}
@@ -150,8 +172,8 @@ export default function DetectionTable({
                     padding: "5px 10px",
                     borderRadius: 6,
                     border: "none",
-                    background: active ? "#2dd4bf" : "transparent",
-                    color: active ? "#06090f" : "#8ba3bd",
+                    background: active ? (colors ? colors.fg : "#2dd4bf") : "transparent",
+                    color: active ? "#06090f" : colors ? colors.fg : "#8ba3bd",
                     fontSize: 11,
                     fontWeight: 700,
                     cursor: "pointer",
@@ -159,7 +181,7 @@ export default function DetectionTable({
                     whiteSpace: "nowrap",
                   }}
                 >
-                  {t === "all" ? "All Types" : t}
+                  {t === "all" ? "All Types" : t.replace("/", "/\u200B")}
                 </button>
               );
             })}
@@ -264,22 +286,24 @@ export default function DetectionTable({
                       <td style={{ color: "#9fb5cc", fontWeight: 700 }}>#{d.id}</td>
                       <td style={{ color: "#b6c6d9", maxWidth: 240, fontSize: 13 }}>{d.type}</td>
                       <td>
-                        {d.objectType && d.objectType !== "Unknown" ? (
-                          <span style={{
-                            display: "inline-block",
-                            padding: "2px 8px",
-                            borderRadius: 4,
-                            fontSize: 11,
-                            fontWeight: 700,
-                            background: d.objectType === "Structure" ? "rgba(56,189,248,0.15)" : d.objectType === "Vegetation" ? "rgba(52,211,153,0.15)" : d.objectType === "Water" ? "rgba(56,189,248,0.15)" : d.objectType === "Urban Expansion" ? "rgba(245,158,11,0.15)" : "rgba(148,163,184,0.15)",
-                            color: d.objectType === "Structure" ? "#38bdf8" : d.objectType === "Vegetation" ? "#34d399" : d.objectType === "Water" ? "#22d3ee" : d.objectType === "Urban Expansion" ? "#f59e0b" : "#94a3b8",
-                            border: `1px solid ${d.objectType === "Structure" ? "rgba(56,189,248,0.3)" : d.objectType === "Vegetation" ? "rgba(52,211,153,0.3)" : d.objectType === "Water" ? "rgba(56,189,248,0.3)" : d.objectType === "Urban Expansion" ? "rgba(245,158,11,0.3)" : "rgba(148,163,184,0.3)"}`,
-                          }}>
-                            {d.objectType}
-                          </span>
-                        ) : (
-                          <span style={{ color: "#4a6a85", fontSize: 11 }}>—</span>
-                        )}
+                        {(() => {
+                          const label = classifyDetection(d);
+                          const colors = BADGE_COLORS[label];
+                          return (
+                            <span style={{
+                              display: "inline-block",
+                              padding: "2px 8px",
+                              borderRadius: 4,
+                              fontSize: 11,
+                              fontWeight: 700,
+                              background: colors.bg,
+                              color: colors.fg,
+                              border: `1px solid ${colors.border}`,
+                            }}>
+                              {label}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td><span className={`badge badge-${displayPriority}`}>{displayPriority}</span></td>
                       <td>
