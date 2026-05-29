@@ -52,3 +52,37 @@ export function mergeOverlappingDetections(detections: Detection[], iouThreshold
 
   return kept.map((d, i) => ({ ...d, id: i + 1 }));
 }
+
+function bboxProximity(a: [number, number, number, number], b: [number, number, number, number]): number {
+  const [ax, ay, aw, ah] = a;
+  const [bx, by, bw, bh] = b;
+  const aRight = ax + aw;
+  const aBottom = ay + ah;
+  const bRight = bx + bw;
+  const bBottom = by + bh;
+
+  const xDist = Math.max(0, Math.max(ax, bx) - Math.min(aRight, bRight));
+  const yDist = Math.max(0, Math.max(ay, by) - Math.min(aBottom, bBottom));
+
+  return Math.sqrt(xDist * xDist + yDist * yDist);
+}
+
+/** Merge detections whose bounding boxes are within `proximityPx` of each other. */
+export function mergeProximateDetections(detections: Detection[], proximityPx = 10): Detection[] {
+  const sorted = [...detections].sort((a, b) => b.score - a.score);
+  const kept: Detection[] = [];
+
+  for (const d of sorted) {
+    let merged = false;
+    for (let i = 0; i < kept.length; i++) {
+      if (bboxProximity(d.bbox, kept[i].bbox) <= proximityPx) {
+        kept[i] = mergePair(kept[i], d);
+        merged = true;
+        break;
+      }
+    }
+    if (!merged) kept.push({ ...d });
+  }
+
+  return kept.map((d, i) => ({ ...d, id: i + 1 }));
+}

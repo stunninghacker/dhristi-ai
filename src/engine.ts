@@ -1,7 +1,8 @@
 import { estimateTranslationShift, shiftCanvas } from "./alignment";
-import { mergeOverlappingDetections } from "./detectionMerge";
+import { mergeOverlappingDetections, mergeProximateDetections } from "./detectionMerge";
 import { applyGeoMetadata, isTiffFile, renderTiffToCanvas } from "./geospatial";
 import { PROFILES } from "./profiles";
+import { isVisualFlagRegion, VISUAL_FLAG_SCORE_THRESHOLD } from "./utils/preliminary";
 import type {
   Detection,
   AnalysisResult,
@@ -714,8 +715,8 @@ function extractDetections(
     const [bx, by, bw, bh] = reg.bbox;
     if (bw < 6 || bh < 6) continue;
 
-    const aspect = Math.max(bw / Math.max(bh, 1), bh / Math.max(bw, 1));
-    if (aspect > 10 && profile !== "Urban development" && profile !== "Water-body change") continue;
+    const aspectRatio = Math.max(bw / Math.max(bh, 1), bh / Math.max(bw, 1));
+    if (aspectRatio > 10 && profile !== "Urban development" && profile !== "Water-body change") continue;
     const fillRatio = area / Math.max(bw * bh, 1);
     if (fillRatio < 0.035) continue;
 
@@ -761,10 +762,18 @@ function extractDetections(
 
     const cx = bx + Math.round(bw / 2);
     const cy = by + Math.round(bh / 2);
+    const aspect = Math.max(bw / Math.max(bh, 1), bh / Math.max(bw, 1));
+
+    let objectType = "Unknown";
+    if (area > 5000 && comp < 0.4 && meanDelta > 10) objectType = "Vegetation";
+    else if (comp > 0.6 && meanDelta > 20 && area < 5000 && aspect < 4) objectType = "Structure";
+    else if (area > 3000 && meanDelta < 15 && aspect < 3) objectType = "Water";
+    else if (area > 5000 && comp > 0.3 && meanDelta > 15) objectType = "Urban Expansion";
 
     dets.push({
       id: 0,
       type: classifyDetection(profile, meanSpecial, meanEdge, area, comp),
+      objectType,
       priority: priorityFromScore(score, confidence),
       score,
       areaPx: area,
@@ -899,6 +908,43 @@ function computeConfidence(
 
   if (!notes.length) notes.push("Image pair is suitable for automated first-pass change review.");
   return [clamp(conf, 30, 96), notes];
+}
+
+function computePixelDifferenceMetrics(
+  baseline: Uint8ClampedArray,
+  recent: Uint8ClampedArray,
+  mask: Uint8Array,
+): { meanAbsoluteDifference: number; psnr: number | null } {
+  let changedCount = 0;
+  let changedAbsSum = 0;
+  let squaredErrorSum = 0;
+  let channelCount = 0;
+
+  for (let i = 0; i < mask.length; i += 1) {
+    const offset = i * 4;
+    let pixelAbsSum = 0;
+
+    for (let channel = 0; channel < 3; channel += 1) {
+      const diff = baseline[offset + channel] - recent[offset + channel];
+      const abs = Math.abs(diff);
+      pixelAbsSum += abs;
+      squaredErrorSum += diff * diff;
+      channelCount += 1;
+    }
+
+    if (mask[i]) {
+      changedAbsSum += pixelAbsSum / 3;
+      changedCount += 1;
+    }
+  }
+
+  const mse = channelCount > 0 ? squaredErrorSum / channelCount : 0;
+  const psnr = mse <= 0 ? null : 10 * Math.log10((255 * 255) / mse);
+
+  return {
+    meanAbsoluteDifference: changedCount > 0 ? Math.round((changedAbsSum / changedCount) * 100) / 100 : 0,
+    psnr: psnr === null ? null : Math.round(psnr * 100) / 100,
+  };
 }
 
 // ─── Annotation ────────────────────────────────────────────────────────────────
@@ -1158,6 +1204,32 @@ function equalise(gray: ImageData): Uint8ClampedArray {
   return new Uint8ClampedArray(gray.data.map((v,i)=>i%4===3?255:Math.round(((cdf[v]-min)*scale) || 0)));
 }
 
+export function normalizeRGBCanvas(canvas: HTMLCanvasElement): HTMLCanvasElement {
+  const ctx = canvas.getContext("2d")!;
+  const { data, width, height } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+  for (let ch = 0; ch < 3; ch++) {
+    const hist = new Array(256).fill(0);
+    for (let i = ch; i < data.length; i += 4) {
+      hist[data[i]]++;
+    }
+    const total = width * height;
+    const cdf = new Array(256);
+    cdf[0] = hist[0];
+    for (let i = 1; i < 256; i++) {
+      cdf[i] = cdf[i - 1] + hist[i];
+    }
+    const minCdf = cdf.find(v => v > 0) ?? 0;
+    const scale = 255 / (total - minCdf);
+    for (let i = ch; i < data.length; i += 4) {
+      data[i] = Math.round((cdf[data[i]] - minCdf) * scale);
+    }
+  }
+
+  ctx.putImageData(new ImageData(data, width, height), 0, 0);
+  return canvas;
+}
+
 // Convert Float32Array grayscale (0-255 range) into an ImageData for equalise()
 function grayToImageData(gray: Float32Array, w: number, h: number): ImageData {
   const data = new Uint8ClampedArray(w * h * 4);
@@ -1219,6 +1291,8 @@ export async function analysePair(
   minArea: number,
   showLabels: boolean,
   geoReferences?: GeoReferencePair,
+  normalize?: boolean,
+  falsePositiveFilter?: number,
 ): Promise<AnalysisResult> {
 
   const now = new Date();
@@ -1266,6 +1340,16 @@ export async function analysePair(
   // Resize c2 to match c1 height if needed
   let c2 = createCanvas(resolution, h1);
   c2.getContext("2d")!.drawImage(c2raw, 0, 0, resolution, h1);
+
+  // ── Per-channel histogram equalization ──
+  let originalBaseImage: string | undefined;
+  let originalRecentImage: string | undefined;
+  if (normalize) {
+    originalBaseImage = imgToURL(c1);
+    originalRecentImage = imgToURL(c2);
+    normalizeRGBCanvas(c1);
+    normalizeRGBCanvas(c2);
+  }
 
   const p1 = getPixels(c1);
   let p2raw = getPixels(c2);
@@ -1373,6 +1457,7 @@ export async function analysePair(
   // ── Preliminary metrics ──
   const maskedCount = mask.reduce((s, v) => s + v, 0);
   const prelimChangedPct = (maskedCount / (resolution * h1)) * 100;
+  const differenceMetrics = computePixelDifferenceMetrics(p1, p2norm, mask);
   const [rawPrelimConf] = computeConfidence(ssimScore, alignScore, prelimChangedPct, brightnessDelta, contrastDelta);
   const prelimConf = reliabilityGate.confidenceCap === null
     ? rawPrelimConf
@@ -1382,12 +1467,20 @@ export async function analysePair(
 
   let detections = extractDetections(surface, edge, special, mask, resolution, h1, profile, minArea, prelimConf, ssimScore);
   detections = mergeOverlappingDetections(detections);
+  detections = mergeProximateDetections(detections, 10);
 
   let usedHintMode = false;
   if (detections.length === 0 && prelimChangedPct < 3.0) {
     detections = extractHints(surface, resolution, h1, profile, minArea);
     usedHintMode = detections.length > 0;
   }
+
+  const fpThreshold = falsePositiveFilter != null ? falsePositiveFilter / 100 : 0;
+  const beforeFilter = detections.length;
+  if (fpThreshold > 0) {
+    detections = detections.filter(d => d.score >= fpThreshold * 100);
+  }
+  const regionsFiltered = beforeFilter - detections.length;
 
   const localArea = detections.reduce((s, d) => s + d.areaPx, 0);
   const localChangedPct = (localArea / (resolution * h1)) * 100;
@@ -1435,24 +1528,40 @@ export async function analysePair(
     }
   }
 
-  const highFlags = detections.filter(d =>
-    d.priority === "HIGH" || d.priority === "CRITICAL"
-  ).length;
-  const maxScore = detections.reduce((m, d) => Math.max(m, d.score), 0);
+  const visualFlagDetections = detections.filter(isVisualFlagRegion);
+  const outputDetections = reliabilityGate.sceneComparability === "VERY LOW"
+    ? visualFlagDetections
+    : detections;
+
+  if (reliabilityGate.sceneComparability === "VERY LOW") {
+    const suppressedCount = detections.length - outputDetections.length;
+    if (suppressedCount > 0) {
+      notes.push(`${suppressedCount} preliminary visual review region(s) fell below the visual flag confidence threshold (${VISUAL_FLAG_SCORE_THRESHOLD}/100) and were omitted from the review log.`);
+    }
+  }
+
+  outputDetections.forEach((d, index) => {
+    d.id = index + 1;
+  });
+
+  const highFlags = visualFlagDetections.length;
+  const maxScore = outputDetections.reduce((m, d) => Math.max(m, d.score), 0);
+  const reviewRegionArea = outputDetections.reduce((sum, detection) => sum + detection.areaPx, 0);
+  const reviewRegionDensityPct = Math.round((reviewRegionArea / Math.max(1, frameArea)) * 100000) / 1000;
 
   let analysisPriority: OverallPriority = "LOW";
   if (reliabilityGate.sceneComparability === "VERY LOW") {
     analysisPriority = "PRELIMINARY REVIEW";
   } else if (reliabilityGate.sceneComparability === "LOW") {
-    analysisPriority = detections.length >= 1 ? "MEDIUM" : "LOW";
+    analysisPriority = outputDetections.length >= 1 ? "MEDIUM" : "LOW";
   } else if (reliabilityGate.sceneComparability === "MODERATE") {
     if (highFlags >= 1) analysisPriority = "HIGH";
-    else if (detections.length >= 1) analysisPriority = "MEDIUM";
+    else if (outputDetections.length >= 1) analysisPriority = "MEDIUM";
   } else if (changedArea > 10 && confidence < 70) {
     analysisPriority = "HIGH (low confidence)";
   } else if (highFlags >= 1) {
     analysisPriority = maxScore >= 68 ? "HIGH" : "MEDIUM";
-  } else if (detections.length >= 1) {
+  } else if (outputDetections.length >= 1) {
     analysisPriority = "MEDIUM";
   }
 
@@ -1467,10 +1576,10 @@ export async function analysePair(
   const base = c1;
   const reg = c2;
   const visibleDetections = reliabilityGate.sceneComparability === "VERY LOW"
-    ? detections.slice(0, PRELIMINARY_VISIBLE_REGION_LIMIT)
-    : detections;
+    ? outputDetections.slice(0, PRELIMINARY_VISIBLE_REGION_LIMIT)
+    : outputDetections;
   const preliminaryOutput = reliabilityGate.reliability === "PRELIMINARY" || ssimScore < 0.20;
-  const geoMetadata = applyGeoMetadata(detections, geoReferences, {
+  const geoMetadata = applyGeoMetadata(outputDetections, geoReferences, {
     analysisWidth: resolution,
     analysisHeight: h1,
     baselineScale: scale1,
@@ -1493,7 +1602,7 @@ export async function analysePair(
     profile,
     analysisPriority,
     changedAreaPct: Math.round(changedArea * 1000) / 1000,
-    detectionCount: detections.length,
+    detectionCount: outputDetections.length,
     highPriorityFlags: highFlags,
     maxScore,
     confidence,
@@ -1506,9 +1615,9 @@ export async function analysePair(
     detectionsAreConfirmed: false,
     preliminaryMode: reliabilityGate.sceneComparability === "VERY LOW",
     visibleRegionLimit: reliabilityGate.sceneComparability === "VERY LOW"
-      ? Math.min(PRELIMINARY_VISIBLE_REGION_LIMIT, detections.length)
-      : detections.length,
-    totalReviewRegions: detections.length,
+      ? Math.min(PRELIMINARY_VISIBLE_REGION_LIMIT, outputDetections.length)
+      : outputDetections.length,
+    totalReviewRegions: outputDetections.length,
     alignmentUsed: alignUsed,
     alignmentScore: isFinite(alignScore) ? clamp(alignScore, 0, 100) : 0,
     brightnessDelta: Math.round(brightnessDelta * 100) / 100,
@@ -1518,14 +1627,23 @@ export async function analysePair(
     reliabilityTier,
     maskChangedPct: Math.round(prelimChangedPct * 1000) / 1000,
     alignmentShift,
-    detections,
+    meanAbsoluteDifference: differenceMetrics.meanAbsoluteDifference,
+    psnr: differenceMetrics.psnr,
+    regionsFiltered,
+    reviewRegionDensityPct,
+    timeline: {
+      baselineDate: null,
+      recentDate: null,
+    },
+    detections: outputDetections,
     geoMetadata,
     images: {
       baseImage,
       recentImage,
       annotatedImage,
       heatmapImage,
+      ...(normalize ? { originalBaseImage, originalRecentImage } : {}),
     },
-    parameters: { resolution, sensitivity, minimumAreaPx: minArea, profile },
+    parameters: { resolution, sensitivity, minimumAreaPx: minArea, profile, normalize, showLabels, falsePositiveFilter },
   };
 }

@@ -50,7 +50,7 @@ export default function RegionPreview({ imageSrc, region }: Props) {
 
   return (
     <div style={{ marginBottom: 14, minWidth: 0 }}>
-      <div style={{ color: "#4a8aaa", fontSize: 10, fontWeight: 900, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 7 }}>
+      <div style={{ color: "#4a8aaa", fontSize: 13, fontWeight: 900, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 7 }}>
         Selected region preview
       </div>
       <canvas

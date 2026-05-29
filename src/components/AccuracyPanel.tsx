@@ -26,7 +26,7 @@ export default function AccuracyPanel({ result }: { result: AnalysisResult }) {
       <div style={{ minWidth: 0, overflow: "hidden" }}>
         <div
           style={{
-            fontSize: 10,
+            fontSize: 13,
             color: "#4a8aaa",
             letterSpacing: "0.12em",
             textTransform: "uppercase",
@@ -38,7 +38,7 @@ export default function AccuracyPanel({ result }: { result: AnalysisResult }) {
         <div style={{ fontSize: 16, fontWeight: 700, color: result.reliability === "PRELIMINARY" ? "#facc15" : "#22c55e" }}>
           {result.reliability}
         </div>
-        <div style={{ fontSize: 11, color: "#4a6a7a" }}>
+        <div style={{ fontSize: 13, color: "#4a6a7a" }}>
           {reliabilityNote(result)}
         </div>
       </div>
@@ -46,7 +46,7 @@ export default function AccuracyPanel({ result }: { result: AnalysisResult }) {
       <div style={{ minWidth: 0, overflow: "hidden" }}>
         <div
           style={{
-            fontSize: 10,
+            fontSize: 13,
             color: "#4a8aaa",
             letterSpacing: "0.12em",
             textTransform: "uppercase",
@@ -58,7 +58,7 @@ export default function AccuracyPanel({ result }: { result: AnalysisResult }) {
         <div style={{ fontSize: 16, fontWeight: 700, color: result.sceneComparability === "VERY LOW" ? "#facc15" : "#3ab5ff" }}>
           {result.sceneComparability}
         </div>
-        <div style={{ fontSize: 11, color: "#4a6a7a" }}>
+        <div style={{ fontSize: 13, color: "#4a6a7a" }}>
           SSIM {Number.isFinite(result.ssim) ? result.ssim.toFixed(4) : "0.0000"}
         </div>
       </div>
@@ -66,7 +66,7 @@ export default function AccuracyPanel({ result }: { result: AnalysisResult }) {
       <div style={{ minWidth: 0, overflow: "hidden", color: '#3ab5ff' }}>
         <div
           style={{
-            fontSize: 10,
+            fontSize: 13,
             color: '#4a8aaa',
             letterSpacing: "0.12em",
             textTransform: "uppercase",
@@ -78,7 +78,7 @@ export default function AccuracyPanel({ result }: { result: AnalysisResult }) {
         <div style={{ fontSize: 16, fontWeight: 700, color: '#3ab5ff' }}>
           {Number.isFinite(result.maskChangedPct) ? result.maskChangedPct.toFixed(2) : "0.00"}%
         </div>
-        <div style={{ fontSize: 11, color: '#4a6a7a' }}>
+        <div style={{ fontSize: 13, color: '#4a6a7a' }}>
           {result.sceneComparability === "VERY LOW" ? "Global difference coverage" : "Changed area"} {Number.isFinite(result.changedAreaPct) ? result.changedAreaPct.toFixed(2) : "0.00"}%
         </div>
       </div>
@@ -86,7 +86,7 @@ export default function AccuracyPanel({ result }: { result: AnalysisResult }) {
       <div style={{ minWidth: 0, overflow: "hidden", color: '#2dd4bf' }}>
         <div
           style={{
-            fontSize: 10,
+            fontSize: 13,
             color: '#4a8aaa',
             letterSpacing: "0.12em",
             textTransform: "uppercase",
@@ -98,7 +98,7 @@ export default function AccuracyPanel({ result }: { result: AnalysisResult }) {
         <div style={{ fontSize: 16, fontWeight: 700, color: '#2dd4bf' }}>
           {result.alignmentUsed ? "Applied" : "Skipped"}
         </div>
-        <div style={{ fontSize: 11, color: '#4a6a7a' }}>
+        <div style={{ fontSize: 13, color: '#4a6a7a' }}>
           Score {Number.isFinite(result.alignmentScore) ? result.alignmentScore : 0}/100
         </div>
       </div>

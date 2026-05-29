@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { PROFILES } from "../profiles";
+import { PROFILE_DISPLAY_CONFIGS } from "../config/profiles";
 import type { ProfileKey } from "../types";
 
 interface SolutionSummaryProps {
@@ -11,72 +12,16 @@ interface SolutionSummaryProps {
 
 type ProfileCardMeta = {
   key: ProfileKey;
-  name: string;
   icon: string;
-  bullets: string[];
 };
 
 const PROFILE_CARDS: ProfileCardMeta[] = [
-  {
-    key: "Defence / Security",
-    name: "Defence / Security",
-    icon: "🛡",
-    bullets: [
-      "Flags compact, object-like activity signals.",
-      "Prioritises structures, routes, and hard edges.",
-      "Tuned for analyst-safe security triage.",
-    ],
-  },
-  {
-    key: "Urban development",
-    name: "Urban",
-    icon: "🏗",
-    bullets: [
-      "Highlights built-up expansion and new works.",
-      "Tracks roads, rooftops, and infrastructure shifts.",
-      "Balances area growth with structural evidence.",
-    ],
-  },
-  {
-    key: "Environmental monitoring",
-    name: "Environmental",
-    icon: "🌿",
-    bullets: [
-      "Surfaces broad land-cover and vegetation change.",
-      "Weights spectral shifts across soil and canopy.",
-      "Reduces noise from local object-level clutter.",
-    ],
-  },
-  {
-    key: "Disaster assessment",
-    name: "Disaster",
-    icon: "⚠",
-    bullets: [
-      "Prioritises flood, fire, debris, and damage signals.",
-      "Looks for wide disturbance and surface disruption.",
-      "Supports rapid post-event review workflows.",
-    ],
-  },
-  {
-    key: "Water-body change",
-    name: "Water-body",
-    icon: "💧",
-    bullets: [
-      "Tracks shoreline movement and water extent.",
-      "Detects reservoir, flood, and surface changes.",
-      "Emphasises spectral evidence around boundaries.",
-    ],
-  },
-  {
-    key: "Agriculture / vegetation",
-    name: "Agriculture",
-    icon: "🌾",
-    bullets: [
-      "Detects crop condition and field-level variation.",
-      "Highlights vegetation loss and exposed soil.",
-      "Weights spectral change over compact objects.",
-    ],
-  },
+  { key: "Defence / Security", icon: "🛡" },
+  { key: "Urban development", icon: "🏗" },
+  { key: "Environmental monitoring", icon: "🌿" },
+  { key: "Disaster assessment", icon: "⚠" },
+  { key: "Water-body change", icon: "💧" },
+  { key: "Agriculture / vegetation", icon: "🌾" },
 ];
 
 export default function SolutionSummary({ profile, setProfile, preliminaryReview = false }: SolutionSummaryProps) {
@@ -148,8 +93,8 @@ export default function SolutionSummary({ profile, setProfile, preliminaryReview
           }}>
             <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#38bdf8", marginTop: 5, flexShrink: 0 }} />
             <div>
-              <div style={{ color: "#e8f2ff", fontSize: 12, fontWeight: 700 }}>{name}</div>
-              <div style={{ color: "#7db7e5", fontSize: 11, marginTop: 2 }}>{desc}</div>
+              <div style={{ color: "#e8f2ff", fontSize: 13, fontWeight: 700 }}>{name}</div>
+              <div style={{ color: "#7db7e5", fontSize: 13, marginTop: 2 }}>{desc}</div>
             </div>
           </div>
         ))}
@@ -167,20 +112,20 @@ export default function SolutionSummary({ profile, setProfile, preliminaryReview
       <div style={{
         background: "rgba(56,189,248,0.06)",
         border: "1px solid rgba(56,189,248,0.2)",
-        borderRadius: 10, padding: "14px 16px",
+        borderRadius: 8, padding: "14px 16px",
       }}>
         <div style={{ color: "#38bdf8", fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Analyst-Safe Language Policy</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <div>
-            <div style={{ color: "#34d399", fontSize: 11, fontWeight: 700, marginBottom: 6 }}>✓ Used in this system</div>
+            <div style={{ color: "#22c55e", fontSize: 13, fontWeight: 700, marginBottom: 6 }}>✓ Used in this system</div>
             {["change candidate", "review zone", "low-confidence review hint", "localized change signal", "structural review zone", "land-cover change zone"].map(t => (
-              <div key={t} style={{ color: "#bbf7d0", fontSize: 11, marginBottom: 3 }}>· {t}</div>
+              <div key={t} style={{ color: "#bbf7d0", fontSize: 13, marginBottom: 3 }}>· {t}</div>
             ))}
           </div>
           <div>
-            <div style={{ color: "#fb4765", fontSize: 11, fontWeight: 700, marginBottom: 6 }}>✗ Avoided in this system</div>
+            <div style={{ color: "#fb4765", fontSize: 13, fontWeight: 700, marginBottom: 6 }}>✗ Avoided in this system</div>
             {["definitive attribution", "object identity claim", "activity conclusion", "certainty claim", "unverified final assessment"].map(t => (
-              <div key={t} style={{ color: "#fecdd3", fontSize: 11, marginBottom: 3 }}>· {t}</div>
+              <div key={t} style={{ color: "#fecdd3", fontSize: 13, marginBottom: 3 }}>· {t}</div>
             ))}
           </div>
         </div>
@@ -203,6 +148,7 @@ function ProfileCard({
   onHoverChange: (isHovered: boolean) => void;
 }) {
   const config = PROFILES[card.key];
+  const displayConfig = PROFILE_DISPLAY_CONFIGS[card.key];
   const thresholdLabel = `threshold ${config.thresholdBias > 0 ? "+" : ""}${config.thresholdBias}`;
   const areaLabel = `area ${config.minAreaScale.toFixed(2)}x`;
   const compactnessLabel = `compactness ${config.compactnessWeight.toFixed(2)}x`;
@@ -212,7 +158,7 @@ function ProfileCard({
     background: active ? "#0d2240" : expanded ? "#0d1f38" : "#0a1628",
     border: active ? "2px solid #3ab5ff" : expanded ? "1px solid #3ab5ff" : "1px solid #1e3a5a",
     borderLeft: active ? "4px solid #3ab5ff" : expanded ? "1px solid #3ab5ff" : "1px solid #1e3a5a",
-    borderRadius: 12,
+    borderRadius: 8,
     boxShadow: expanded ? "0 0 20px rgba(58,181,255,0.15)" : "none",
     color: "#e8f2ff",
     cursor: "pointer",
@@ -243,7 +189,7 @@ function ProfileCard({
         {card.icon}
       </div>
       <div style={{ fontSize: expanded ? 15 : 18, fontWeight: 800, lineHeight: 1.15, marginBottom: expanded ? 6 : 0 }}>
-        {card.name}
+        {displayConfig.displayName}
       </div>
 
       <div style={{
@@ -257,17 +203,12 @@ function ProfileCard({
         flex: expanded ? 1 : "0 0 auto",
         pointerEvents: expanded ? "auto" : "none",
       }}>
-        <div style={{ color: "#2dd4bf", fontSize: 12, fontStyle: "italic", marginBottom: 8 }}>
+        <div style={{ color: "#2dd4bf", fontSize: 13, fontStyle: "italic", marginBottom: 8 }}>
           {config.label}
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 10 }}>
-          {card.bullets.map(bullet => (
-            <div key={bullet} style={{ display: "flex", gap: 6, alignItems: "flex-start", textAlign: "left" }}>
-              <span style={{ color: "#3ab5ff", fontSize: 12, lineHeight: 1.35 }}>•</span>
-              <span style={{ color: "#9ab0c5", fontSize: 12, lineHeight: 1.35 }}>{bullet}</span>
-            </div>
-          ))}
+        <div style={{ color: "#9ab0c5", fontSize: 13, lineHeight: 1.45, marginBottom: 10, textAlign: "left", padding: "0 2px" }}>
+          {displayConfig.description}
         </div>
 
         <div style={{ display: "flex", gap: 5, flexWrap: "wrap", justifyContent: "center", marginTop: "auto" }}>
@@ -278,7 +219,7 @@ function ProfileCard({
               border: "1px solid rgba(58,181,255,0.22)",
               borderRadius: 999,
               padding: "3px 7px",
-              fontSize: 10,
+              fontSize: 13,
               lineHeight: 1,
               whiteSpace: "nowrap",
             }}>
@@ -307,13 +248,13 @@ function InfoCard({ title, color, items }: { title: string; color: string; items
     <div style={{
       background: "#0a1624", border: `1px solid #18283e`,
       borderTop: `3px solid ${color}`,
-      borderRadius: 10, padding: "14px",
+      borderRadius: 8, padding: "14px",
     }}>
       <div style={{ color, fontWeight: 800, fontSize: 13, marginBottom: 10 }}>{title}</div>
       {items.map(item => (
         <div key={item} style={{ display: "flex", gap: 8, marginBottom: 7 }}>
           <div style={{ color, fontSize: 14, lineHeight: 1.2, flexShrink: 0 }}>·</div>
-          <div style={{ color: "#9fb5cc", fontSize: 12, lineHeight: 1.5 }}>{item}</div>
+          <div style={{ color: "#9fb5cc", fontSize: 13, lineHeight: 1.5 }}>{item}</div>
         </div>
       ))}
     </div>

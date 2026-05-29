@@ -10,8 +10,6 @@ const VIEWS = [
   { key: "heatmapImage", label: "Change-Priority Heatmap" },
 ] as const;
 
-
-
 interface Props {
   result: AnalysisResult;
   showHeatmap: boolean;
@@ -48,7 +46,7 @@ export default function ImageViewer({ result, showHeatmap }: Props) {
           <div key={label} style={{
             background: "#050912",
             border: "1px solid #18283e",
-            borderRadius: 12,
+            borderRadius: 8,
             padding: 10,
             textAlign: "center",
           }}>
@@ -65,25 +63,59 @@ export default function ImageViewer({ result, showHeatmap }: Props) {
                 background: "#020617",
               }}
             />
-            <div style={{ color: "#8ba3bd", fontSize: 11, marginTop: 6 }}>{label}</div>
+            <div style={{ color: "#8ba3bd", fontSize: 13, marginTop: 6 }}>{label}</div>
             {isPreliminary && label.includes("Review Regions") && (
-              <div style={{ color: "#7dd3fc", fontSize: 10, marginTop: 4 }}>
+              <div style={{ color: "#7dd3fc", fontSize: 13, marginTop: 4 }}>
                 Showing top review regions. Full list available in exports.
               </div>
             )}
           </div>
         ))}
+
+        {/* Before/After normalization comparison */}
+        {result.images.originalBaseImage && (
+          <div style={{
+            background: "#050912",
+            border: "1px solid #18283e",
+            borderRadius: 8,
+            padding: 12,
+          }}>
+            <div style={{ color: "#7dd3fc", fontSize: 13, fontWeight: 700, marginBottom: 10, textAlign: "center", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+              Normalization Comparison
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              {[
+                { orig: result.images.originalBaseImage, norm: result.images.baseImage, label: "T1 — Baseline" },
+                { orig: result.images.originalRecentImage, norm: result.images.recentImage, label: "T2 — Recent" },
+              ].map(({ orig, norm, label }) => (
+                <div key={label}>
+                  <div style={{ color: "#8ba3bd", fontSize: 12, fontWeight: 600, marginBottom: 6, textAlign: "center" }}>{label}</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                    <div style={{ textAlign: "center" }}>
+                      <img src={orig} alt={`${label} original`} style={{ maxHeight: 140, maxWidth: "100%", borderRadius: 6, display: "block", margin: "0 auto" }} />
+                      <div style={{ color: "#6b8099", fontSize: 11, marginTop: 3 }}>Original</div>
+                    </div>
+                    <div style={{ textAlign: "center" }}>
+                      <img src={norm} alt={`${label} normalized`} style={{ maxHeight: 140, maxWidth: "100%", borderRadius: 6, display: "block", margin: "0 auto" }} />
+                      <div style={{ color: "#34d399", fontSize: 11, marginTop: 3 }}>Normalized</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Full viewer */}
       <div style={{
         background: "#070c15",
         border: "1px solid #18283e",
-        borderRadius: 14,
+        borderRadius: 8,
         padding: 16,
       }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 10 }}>
-          <div style={{ color: "#7db7e5", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.18em", fontWeight: 700 }}>
+          <div style={{ color: "#7db7e5", fontSize: 13, textTransform: "uppercase", letterSpacing: "0.18em", fontWeight: 700 }}>
             Image Viewer
           </div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -97,7 +129,7 @@ export default function ImageViewer({ result, showHeatmap }: Props) {
                   border: i === safeIdx ? "1px solid #38bdf8" : "1px solid #1c3554",
                   background: i === safeIdx ? "rgba(56,189,248,0.12)" : "#0b1522",
                   color: i === safeIdx ? "#38bdf8" : "#8ba3bd",
-                  fontSize: 11, fontWeight: 600, cursor: "pointer",
+                  fontSize: 13, fontWeight: 600, cursor: "pointer",
                   transition: "all 0.2s",
                 }}
               >
@@ -111,15 +143,15 @@ export default function ImageViewer({ result, showHeatmap }: Props) {
           </div>
         </div>
 
-        <div style={{ background: "#050912", borderRadius: 10, padding: 12, textAlign: "center", minHeight: 300 }}>
+        <div style={{ background: "#050912", borderRadius: 8, padding: 12, textAlign: "center", minHeight: 300 }}>
           <img
             src={imgUrl}
             alt={current.label}
             className="viewer-img"
           />
-          <div style={{ color: "#8ba3bd", fontSize: 12, marginTop: 8 }}>{current.label}</div>
+          <div style={{ color: "#8ba3bd", fontSize: 13, marginTop: 8 }}>{current.label}</div>
           {isPreliminary && (current.key === "annotatedImage" || current.key === "heatmapImage") && (
-            <div style={{ color: "#7dd3fc", fontSize: 11, marginTop: 4 }}>
+            <div style={{ color: "#7dd3fc", fontSize: 13, marginTop: 4 }}>
               Showing top review regions. Full list available in exports.
             </div>
           )}
@@ -142,7 +174,7 @@ function NavBtn({ onClick, label, children }: { onClick: () => void; label: stri
         color: "#9fb5cc",
         cursor: "pointer",
         display: "flex", alignItems: "center", gap: 4,
-        fontSize: 12, fontWeight: 600,
+        fontSize: 13, fontWeight: 600,
         transition: "border-color 0.2s",
       }}
     >

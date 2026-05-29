@@ -12,7 +12,7 @@ export default function ReliabilityCauses({ result }: { result: AnalysisResult }
       style={{
         background: "linear-gradient(180deg, rgba(245,158,11,0.10), rgba(8,17,29,0.96))",
         border: "1px solid rgba(245,158,11,0.32)",
-        borderRadius: 12,
+        borderRadius: 8,
         marginBottom: 18,
         overflow: "hidden",
       }}
@@ -33,7 +33,7 @@ export default function ReliabilityCauses({ result }: { result: AnalysisResult }
           <div style={{ color: "#fde68a", fontSize: 13, fontWeight: 800, marginBottom: 4 }}>
             Reliability explanation
           </div>
-          <div style={{ color: "#d3b878", fontSize: 12, lineHeight: 1.5 }}>
+          <div style={{ color: "#d3b878", fontSize: 13, lineHeight: 1.5 }}>
             Low scene comparability may reflect one or more unmeasured factors. Review these as possible causes only.
           </div>
         </div>
@@ -61,7 +61,7 @@ export default function ReliabilityCauses({ result }: { result: AnalysisResult }
             <div
               style={{
                 color: "#fbbf24",
-                fontSize: 10,
+                fontSize: 13,
                 fontWeight: 800,
                 letterSpacing: "0.12em",
                 textTransform: "uppercase",
@@ -70,7 +70,7 @@ export default function ReliabilityCauses({ result }: { result: AnalysisResult }
             >
               {status}
             </div>
-            <div style={{ color: "#fff0bf", fontSize: 12, fontWeight: 700, lineHeight: 1.4 }}>
+            <div style={{ color: "#fff0bf", fontSize: 13, fontWeight: 700, lineHeight: 1.4 }}>
               {cause}
             </div>
           </div>

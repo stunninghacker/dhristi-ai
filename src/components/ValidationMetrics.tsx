@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import type { AnalysisResult, ValidationGroundTruth, ValidationMetricsReport } from "../types";
-import { isPreliminaryReview } from "../utils/preliminary";
+import { countVisualFlagRegions, isPreliminaryReview } from "../utils/preliminary";
 
 interface Props {
   result: AnalysisResult;
@@ -12,7 +12,7 @@ export function buildValidationMetrics(
   result: AnalysisResult,
   groundTruth: ValidationGroundTruth,
 ): ValidationMetricsReport {
-  const highConfidenceRegions = result.detections.filter(detection => detection.score >= 68).length;
+  const highConfidenceRegions = countVisualFlagRegions(result.detections);
   const preliminaryRegions = isPreliminaryReview(result)
     ? result.totalReviewRegions
     : result.detections.filter(detection => detection.priority === "PRELIMINARY" || detection.priority === "REVIEW").length;
@@ -35,6 +35,11 @@ export function buildValidationMetrics(
     preliminaryRegions,
     sceneComparability: result.sceneComparability,
     ssimScore: result.ssim,
+    meanAbsoluteDifference: result.meanAbsoluteDifference,
+    psnr: result.psnr,
+    registrationShift: result.alignmentShift,
+    reviewRegionDensityPct: result.reviewRegionDensityPct,
+    confidenceBand: result.reliabilityTier,
     confidenceScore: result.confidence,
     manualVerificationRequired: result.manualVerificationRequired,
     groundTruth,
@@ -45,11 +50,11 @@ export function buildValidationMetrics(
 }
 
 export default function ValidationMetrics({ result, groundTruth, onGroundTruthChange }: Props) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   const metrics = useMemo(() => buildValidationMetrics(result, groundTruth), [groundTruth, result]);
 
   return (
-    <section style={{ border: "1px solid #18283e", borderRadius: 10, overflow: "hidden", marginBottom: 24 }}>
+    <section style={{ border: "1px solid #18283e", borderRadius: 8, overflow: "hidden", marginTop: 24, marginBottom: 24 }}>
       <button
         type="button"
         onClick={() => setOpen(value => !value)}
@@ -70,7 +75,7 @@ export default function ValidationMetrics({ result, groundTruth, onGroundTruthCh
         }}
       >
         <span style={{ fontSize: 13, fontWeight: 800 }}>Validation Metrics</span>
-        <span style={{ color: "#4a6a85", fontSize: 11 }}>{open ? "Collapse" : "Expand"}</span>
+        <span style={{ color: "#4a6a85", fontSize: 13 }}>{open ? "Collapse" : "Expand"}</span>
       </button>
 
       {open && (
@@ -78,21 +83,25 @@ export default function ValidationMetrics({ result, groundTruth, onGroundTruthCh
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-              gap: 8,
-              marginBottom: 14,
+              gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+              gap: 10,
+              marginBottom: 16,
             }}
           >
-            <Metric label="Total review regions" value={String(metrics.totalReviewRegions)} />
-            <Metric label="High confidence regions" value={String(metrics.highConfidenceRegions)} />
-            <Metric label="Preliminary regions" value={String(metrics.preliminaryRegions)} />
-            <Metric label="Scene comparability" value={metrics.sceneComparability} />
-            <Metric label="SSIM score" value={metrics.ssimScore.toFixed(4)} />
-            <Metric label="Confidence score" value={`${metrics.confidenceScore}/100`} />
-            <Metric label="Manual verification required" value={metrics.manualVerificationRequired ? "Yes" : "No"} />
+            <Metric label="SSIM Score" value={metrics.ssimScore.toFixed(4)} />
+            <Metric label="Mean Absolute Difference" value={`${metrics.meanAbsoluteDifference.toFixed(2)} intensity units`} />
+            <Metric label="PSNR" value={formatPsnr(metrics.psnr)} />
+            <Metric
+              label="Registration Shift"
+              value={`X: ${metrics.registrationShift[0]}px, Y: ${metrics.registrationShift[1]}px`}
+            />
+            <Metric label="Review Region Density" value={`${metrics.reviewRegionDensityPct.toFixed(3)}%`} />
+            <Metric label="Confidence Band" value={metrics.confidenceBand}>
+              <ConfidenceBadge band={metrics.confidenceBand} />
+            </Metric>
           </div>
 
-          <div style={{ color: "#4a8aaa", fontSize: 10, fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}>
+          <div style={{ color: "#4a8aaa", fontSize: 13, fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}>
             Ground Truth
           </div>
           <div
@@ -119,16 +128,45 @@ export default function ValidationMetrics({ result, groundTruth, onGroundTruthCh
               onChange={value => onGroundTruthChange({ ...groundTruth, falseNegatives: value })}
             />
           </div>
+          {(() => {
+          const renderMetricValue = (val: number | null) => {
+            if (val === null) {
+              return (
+                <div className="gt-tooltip-container" style={{ color: "#8ba3bd", fontSize: 13, fontWeight: 700, marginTop: 4 }}>
+                  <span>Awaiting ground truth</span>
+                  <span className="gt-tooltip-icon">i</span>
+                  <span className="gt-tooltip-text">
+                    Ground truth validation requires labeled reference imagery. 
+                    Upload annotated masks to enable precision/recall scoring.
+                  </span>
+                </div>
+              );
+            }
+            return (
+              <div style={{ color: "#3ab5ff", fontSize: 15, fontWeight: 900, overflowWrap: "anywhere", lineHeight: 1.2 }}>
+                {val.toFixed(4)}
+              </div>
+            );
+          };
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
-            <Metric label="Precision" value={formatMetric(metrics.precision)} />
-            <Metric label="Recall" value={formatMetric(metrics.recall)} />
-            <Metric label="F1 score" value={formatMetric(metrics.f1Score)} />
-          </div>
-        </div>
-      )}
-    </section>
-  );
+          return (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
+              <Metric label="Precision" value="">
+                {renderMetricValue(metrics.precision)}
+              </Metric>
+              <Metric label="Recall" value="">
+                {renderMetricValue(metrics.recall)}
+              </Metric>
+              <Metric label="F1 score" value="">
+                {renderMetricValue(metrics.f1Score)}
+              </Metric>
+            </div>
+          );
+        })()}
+      </div>
+    )}
+  </section>
+);
 }
 
 function GroundTruthInput({
@@ -142,7 +180,7 @@ function GroundTruthInput({
 }) {
   return (
     <label style={{ display: "grid", gap: 5, minWidth: 0 }}>
-      <span style={{ color: "#8ba3bd", fontSize: 11, fontWeight: 700 }}>{label}</span>
+      <span style={{ color: "#8ba3bd", fontSize: 13, fontWeight: 700 }}>{label}</span>
       <input
         type="number"
         min={0}
@@ -158,7 +196,7 @@ function GroundTruthInput({
           color: "#e8f2ff",
           padding: "8px 9px",
           minHeight: 36,
-          fontSize: 12,
+          fontSize: 13,
           fontFamily: "inherit",
         }}
       />
@@ -166,14 +204,51 @@ function GroundTruthInput({
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function Metric({ label, value, children }: { label: string; value: string; children?: ReactNode }) {
   return (
-    <div style={{ background: "#081a2e", border: "1px solid #102c48", borderRadius: 8, padding: "9px 10px", minWidth: 0 }}>
-      <div style={{ color: "#4a8aaa", fontSize: 9, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>
+    <div style={{
+      background: "linear-gradient(180deg, #0b1b2e 0%, #081321 100%)",
+      border: "1px solid #18324f",
+      borderRadius: 8,
+      padding: "15px 16px",
+      minWidth: 0,
+      boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.02)",
+    }}>
+      <div style={{ color: "#4a8aaa", fontSize: 13, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>
         {label}
       </div>
-      <div style={{ color: "#3ab5ff", fontSize: 12, fontWeight: 800, overflowWrap: "anywhere" }}>{value}</div>
+      {children ?? (
+        <div style={{ color: "#3ab5ff", fontSize: 15, fontWeight: 900, overflowWrap: "anywhere", lineHeight: 1.2 }}>
+          {value}
+        </div>
+      )}
     </div>
+  );
+}
+
+function ConfidenceBadge({ band }: { band: string }) {
+  const color = band === "VERIFIED"
+    ? { bg: "rgba(34,197,94,0.16)", border: "#22c55e", text: "#22c55e" }
+    : band === "REVIEW"
+      ? { bg: "rgba(245,158,11,0.16)", border: "#f59e0b", text: "#f59e0b" }
+      : { bg: "rgba(239,68,68,0.16)", border: "#ef4444", text: "#ef4444" };
+
+  return (
+    <span style={{
+      display: "inline-flex",
+      alignItems: "center",
+      minHeight: 24,
+      borderRadius: 5,
+      border: `1px solid ${color.border}`,
+      background: color.bg,
+      color: color.text,
+      padding: "3px 9px",
+      fontSize: 13,
+      fontWeight: 900,
+      letterSpacing: "0.08em",
+    }}>
+      {band}
+    </span>
   );
 }
 
@@ -194,4 +269,8 @@ function roundMetric(value: number): number {
 
 function formatMetric(value: number | null): string {
   return value === null ? "Awaiting ground truth" : value.toFixed(4);
+}
+
+function formatPsnr(value: number | null): string {
+  return value === null ? "∞ dB" : `${value.toFixed(2)} dB`;
 }

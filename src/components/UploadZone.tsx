@@ -47,14 +47,14 @@ export default function UploadZone({ label, sublabel, file, onFile, previewUrl }
               marginBottom: 8,
             }}
           />
-          <div style={{ color: "#4fc3ff", fontSize: 12, fontWeight: 600 }}>{file?.name}</div>
-          <div style={{ color: "#8ba3bd", fontSize: 11, marginTop: 2 }}>Click to replace</div>
+          <div style={{ color: "#4fc3ff", fontSize: 13, fontWeight: 600 }}>{file?.name}</div>
+          <div style={{ color: "#8ba3bd", fontSize: 13, marginTop: 2 }}>Click to replace</div>
         </div>
       ) : (
         <div>
           <div style={{ marginBottom: 10, display: "flex", justifyContent: "center" }}>
             <div style={{
-              width: 44, height: 44, borderRadius: 12,
+              width: 44, height: 44, borderRadius: 8,
               background: "rgba(56,189,248,0.08)", border: "1px solid rgba(56,189,248,0.2)",
               display: "flex", alignItems: "center", justifyContent: "center"
             }}>
@@ -62,8 +62,8 @@ export default function UploadZone({ label, sublabel, file, onFile, previewUrl }
             </div>
           </div>
           <div style={{ color: "#e8f2ff", fontWeight: 600, fontSize: 13, marginBottom: 4 }}>{label}</div>
-          <div style={{ color: "#8ba3bd", fontSize: 12, marginBottom: 6 }}>{sublabel}</div>
-          <div style={{ color: "#4a6a85", fontSize: 11 }}>PNG · JPG · TIFF · Click or drag & drop</div>
+          <div style={{ color: "#8ba3bd", fontSize: 13, marginBottom: 6 }}>{sublabel}</div>
+          <div style={{ color: "#4a6a85", fontSize: 13 }}>PNG · JPG · TIFF · Click or drag & drop</div>
         </div>
       )}
     </div>

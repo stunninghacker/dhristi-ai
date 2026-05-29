@@ -1,6 +1,6 @@
 import type { AnalysisResult } from "../types";
 import type { CSSProperties } from "react";
-import { isPreliminaryReview } from "../utils/preliminary";
+import { countVisualFlagRegions, isPreliminaryReview } from "../utils/preliminary";
 
 export default function StatusBanner({ result }: { result: AnalysisResult }) {
   const isPreliminary = isPreliminaryReview(result);
@@ -19,24 +19,25 @@ export default function StatusBanner({ result }: { result: AnalysisResult }) {
   const priorityStyle: CSSProperties = {
     display: "inline-flex", alignItems: "center",
     padding: "3px 14px", borderRadius: "4px",
-    fontSize: "12px", fontWeight: 700,
+    fontSize: "13px", fontWeight: 700,
     letterSpacing: "0.08em", marginRight: "8px",
     fontFamily: "monospace",
   };
 
   const isHintOnly = result.detections.every(d => d.evidence === "weak-local-signal");
+  const visualFlagCount = countVisualFlagRegions(result.detections);
 
   const detLine = isPreliminary
     ? result.detectionCount > 0
-      ? `${result.detectionCount} visual review region(s) identified. Manual verification required.`
+      ? `${visualFlagCount} visual flag(s) identified. Manual verification required.`
       : "No preliminary review regions exceeded the configured threshold. Manual verification required."
     : result.detectionCount === 0
     ? "No localized review zones exceeded the configured threshold."
     : isHintOnly
       ? `${result.detectionCount} low-confidence review hint(s) identified for analyst inspection.`
-      : `${result.detectionCount} change candidate(s) detected. ${result.highPriorityFlags > 0
-          ? `${result.highPriorityFlags} high-priority candidate(s) require analyst review.`
-          : "No high-priority flags raised."}`;
+      : `${result.detectionCount} change candidate(s) detected. ${visualFlagCount > 0
+          ? `${visualFlagCount} visual flag(s) require analyst review.`
+          : "No visual flags raised."}`;
 
   return (
     <div
@@ -44,7 +45,7 @@ export default function StatusBanner({ result }: { result: AnalysisResult }) {
         background: "linear-gradient(180deg, #0f1b2c 0%, #0a121f 100%)",
         border: `1px solid ${borderColor}`,
         borderLeft: `5px solid ${borderColor}`,
-        borderRadius: 12,
+        borderRadius: 8,
         padding: "14px 18px",
         margin: "14px 0",
       }}
@@ -69,7 +70,7 @@ export default function StatusBanner({ result }: { result: AnalysisResult }) {
               border: '1px solid #cc1111',
               padding: '4px 14px',
               borderRadius: '4px',
-              fontSize: '12px',
+              fontSize: '13px',
               fontWeight: 700,
             }}
           >
@@ -106,15 +107,15 @@ export default function StatusBanner({ result }: { result: AnalysisResult }) {
               border: "1px solid #339933",
               padding: "3px 12px",
               borderRadius: "4px",
-              fontSize: "11px",
+              fontSize: "13px",
               fontWeight: 600,
             }}
           >
             LOW CONFIDENCE
           </span>
         )}
-        <span style={{ color: "#9fb5cc", fontSize: 12 }}>{result.timestampUtc}</span>
-        <span style={{ color: "#4a6a85", fontSize: 12 }}>Profile: {result.profile}</span>
+        <span style={{ color: "#9fb5cc", fontSize: 13 }}>{result.timestampUtc}</span>
+        <span style={{ color: "#4a6a85", fontSize: 13 }}>Profile: {result.profile}</span>
       </div>
       <div style={{ color: "#b6c6d9", fontSize: 13, marginTop: 6 }}>{detLine}</div>
     </div>

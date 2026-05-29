@@ -25,17 +25,17 @@ export default function HowItWorks() {
           <div key={num} style={{
             display: "flex", gap: 14, alignItems: "flex-start",
             background: "#0a1624", border: "1px solid #18283e",
-            borderRadius: 10, padding: "12px 14px",
+            borderRadius: 8, padding: "12px 14px",
           }}>
             <div style={{
               width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
               background: "rgba(56,189,248,0.1)", border: "1px solid rgba(56,189,248,0.3)",
               display: "flex", alignItems: "center", justifyContent: "center",
-              color: "#38bdf8", fontSize: 12, fontWeight: 800,
+              color: "#38bdf8", fontSize: 13, fontWeight: 800,
             }}>{num}</div>
             <div>
               <div style={{ color: "#e8f2ff", fontWeight: 700, fontSize: 13, marginBottom: 3 }}>{title}</div>
-              <div style={{ color: "#8ba3bd", fontSize: 12, lineHeight: 1.6 }}>{desc}</div>
+              <div style={{ color: "#8ba3bd", fontSize: 13, lineHeight: 1.6 }}>{desc}</div>
             </div>
           </div>
         ))}

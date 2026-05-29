@@ -73,7 +73,7 @@ export default function AnalystPanel({ result, detection, onAnalystWorkflowChang
               width: "100%",
               background: "linear-gradient(180deg, rgba(13,31,53,0.86), rgba(5,12,23,0.92))",
               border: "1px solid rgba(125,211,252,0.20)",
-              borderRadius: 12,
+              borderRadius: 8,
               padding: "22px 18px",
               textAlign: "center",
               boxShadow: "inset 0 0 0 1px rgba(125,211,252,0.03)",
@@ -93,7 +93,7 @@ export default function AnalystPanel({ result, detection, onAnalystWorkflowChang
             <div style={{ color: "#e8f4ff", fontSize: 13, fontWeight: 800, lineHeight: 1.45, marginBottom: 7 }}>
               Region details
             </div>
-            <div style={{ fontSize: 12, lineHeight: 1.6, color: "#a8c4d8" }}>
+            <div style={{ fontSize: 13, lineHeight: 1.6, color: "#a8c4d8" }}>
               Select a review region on the map or a row in the log to inspect details.
             </div>
           </div>
@@ -130,7 +130,7 @@ export default function AnalystPanel({ result, detection, onAnalystWorkflowChang
         style={{
           background: "rgba(8,26,46,0.72)",
           border: "1px solid #102c48",
-          borderRadius: 10,
+          borderRadius: 8,
           padding: "11px 12px",
           marginBottom: 12,
         }}
@@ -138,7 +138,7 @@ export default function AnalystPanel({ result, detection, onAnalystWorkflowChang
         <div style={{ color: "#e8f4ff", fontSize: 15, fontWeight: 850, lineHeight: 1.35, marginBottom: 5 }}>
           {preliminaryReview ? `Review region #${detection.id}` : `Zone #${detection.id}`}
         </div>
-        <div style={{ color: "#8ba3bd", fontSize: 11, lineHeight: 1.35 }}>
+        <div style={{ color: "#8ba3bd", fontSize: 13, lineHeight: 1.35 }}>
           {detection.type}
         </div>
       </div>
@@ -151,7 +151,7 @@ export default function AnalystPanel({ result, detection, onAnalystWorkflowChang
           background: color,
           borderRadius: 999,
           padding: "4px 9px",
-          fontSize: 10,
+          fontSize: 13,
           fontWeight: 900,
           letterSpacing: "0.08em",
         }}>
@@ -160,7 +160,7 @@ export default function AnalystPanel({ result, detection, onAnalystWorkflowChang
         <div style={{ flex: 1, height: 8, borderRadius: 999, background: "#0b1c31", overflow: "hidden" }}>
           <div style={{ width: `${Math.min(100, detection.score)}%`, height: "100%", background: color, borderRadius: 999 }} />
         </div>
-        <span style={{ color: "#3ab5ff", fontSize: 12, fontWeight: 800 }}>{detection.score}</span>
+        <span style={{ color: "#3ab5ff", fontSize: 13, fontWeight: 800 }}>{detection.score}</span>
       </div>
 
       <div style={{
@@ -181,7 +181,7 @@ export default function AnalystPanel({ result, detection, onAnalystWorkflowChang
       <div style={{ marginBottom: 14 }}>
         <div style={{
           color: "#4a8aaa",
-          fontSize: 11,
+          fontSize: 13,
           fontWeight: 800,
           letterSpacing: "0.12em",
           textTransform: "uppercase",
@@ -200,7 +200,7 @@ export default function AnalystPanel({ result, detection, onAnalystWorkflowChang
             borderRadius: 6,
             color: "#dff9ff",
             padding: "8px 10px",
-            fontSize: 12,
+            fontSize: 13,
             fontWeight: 700,
             fontFamily: "inherit",
             boxSizing: "border-box",
@@ -214,10 +214,10 @@ export default function AnalystPanel({ result, detection, onAnalystWorkflowChang
 
       <div style={{ marginBottom: 14 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 7 }}>
-          <span style={{ color: "#4a8aaa", fontSize: 11, fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase" }}>
+          <span style={{ color: "#4a8aaa", fontSize: 13, fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase" }}>
             Analyst Notes
           </span>
-          <span style={{ color: note.length >= MAX_NOTE_LENGTH ? "#f59e0b" : "#4a6a7a", fontSize: 10 }}>
+          <span style={{ color: note.length >= MAX_NOTE_LENGTH ? "#f59e0b" : "#4a6a7a", fontSize: 13 }}>
             {note.length}/{MAX_NOTE_LENGTH}
           </span>
         </div>
@@ -236,14 +236,14 @@ export default function AnalystPanel({ result, detection, onAnalystWorkflowChang
             color: "#c8dce8",
             padding: "10px",
             outline: "none",
-            fontSize: 12,
+            fontSize: 13,
             lineHeight: 1.5,
             fontFamily: "inherit",
             boxSizing: "border-box",
           }}
         />
         {note.trim() && (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#8ff5bf", fontSize: 11, marginTop: 7 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#8ff5bf", fontSize: 13, marginTop: 7 }}>
             <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#34d399", display: "inline-block" }} />
             Note saved
           </div>
@@ -273,7 +273,7 @@ const panelStyle = {
   minWidth: 0,
   background: "linear-gradient(180deg, #07111f 0%, #050b14 100%)",
   border: "1px solid #1e3a5a",
-  borderRadius: "12px",
+  borderRadius: "8px",
   padding: "16px",
   minHeight: 0,
   height: "auto",
@@ -287,12 +287,12 @@ const panelStyle = {
 function Metric({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
   return (
     <div style={{ background: "#081a2e", border: "1px solid #102c48", borderRadius: 8, padding: "8px 9px", minWidth: 0 }}>
-      <div style={{ color: "#4a8aaa", fontSize: 9, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>
+      <div style={{ color: "#4a8aaa", fontSize: 13, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>
         {label}
       </div>
       <div style={{
         color: "#3ab5ff",
-        fontSize: 11,
+        fontSize: 13,
         fontWeight: 700,
         fontFamily: mono ? "monospace" : "inherit",
         overflow: "hidden",
@@ -318,7 +318,7 @@ function ActionButton({ label, onClick, active = false }: { label: string; onCli
         padding: "9px 12px",
         minHeight: 38,
         cursor: "pointer",
-        fontSize: 10,
+        fontSize: 13,
         fontWeight: 800,
         lineHeight: 1.2,
         fontFamily: "inherit",

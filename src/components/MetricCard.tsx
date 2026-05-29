@@ -18,7 +18,7 @@ export default function MetricCard({ label, value, subtext, valueColor = "#3ab5f
         background: "#091422",
         border: "1px solid #12293d",
         borderRadius: "8px",
-        padding: "12px 10px",
+        padding: "16px 14px",
         minWidth: "0",
         overflow: "hidden",
         boxSizing: "border-box",
@@ -26,7 +26,7 @@ export default function MetricCard({ label, value, subtext, valueColor = "#3ab5f
     >
       <div
         style={{
-          fontSize: "10px",
+          fontSize: "13px",
           color: "#4a8aaa",
           letterSpacing: "0.12em",
           textTransform: "uppercase",
@@ -55,7 +55,7 @@ export default function MetricCard({ label, value, subtext, valueColor = "#3ab5f
         <div
           style={{
             color: "#7f96ad",
-            fontSize: 10,
+            fontSize: 13,
             lineHeight: 1.35,
             marginTop: 8,
           }}

@@ -56,7 +56,7 @@ export default function HeatmapSection({
           position: "relative",
           background: preliminaryMode ? "#05090b" : "#050912",
           border: preliminaryMode ? "1px solid rgba(125,211,252,0.22)" : "1px solid #12293d",
-          borderRadius: 12,
+          borderRadius: 8,
           overflow: "hidden",
           boxShadow: preliminaryMode ? "inset 0 0 0 1px rgba(125,211,252,0.04)" : "none",
         }}
@@ -152,7 +152,7 @@ function LegendItem({ color, label }: { color: string; label: string }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
       <span style={{ width: 18, height: 5, borderRadius: 999, background: color, flexShrink: 0 }} />
-      <span style={{ color: "#9fb5cc", fontSize: 11, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+      <span style={{ color: "#9fb5cc", fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
         {label}
       </span>
     </div>

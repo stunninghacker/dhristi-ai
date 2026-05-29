@@ -93,7 +93,7 @@ export default function BeforeAfterSlider({
         width: "100%",
         background: "#07111f",
         border: "1px solid #12293d",
-        borderRadius: 14,
+        borderRadius: 8,
         padding: 12,
         boxSizing: "border-box",
       }}
@@ -141,7 +141,7 @@ export default function BeforeAfterSlider({
           background: "#020617",
           userSelect: "none",
           touchAction: "none",
-          borderRadius: 12,
+          borderRadius: 8,
           border: "1px solid #1c3554",
           boxShadow: "0 18px 42px rgba(0,0,0,0.20)",
           outline: "none",
@@ -224,7 +224,7 @@ export default function BeforeAfterSlider({
               boxShadow: "0 4px 12px rgba(0,0,0,0.45)",
             }}
           >
-            <span style={{ color: "#7dd3fc", fontSize: 12, fontWeight: 900 }}>{"<>"}</span>
+            <span style={{ color: "#7dd3fc", fontSize: 13, fontWeight: 900 }}>{"<>"}</span>
           </div>
         </div>
 
@@ -246,7 +246,7 @@ function ControlButton({ children, onClick }: { children: React.ReactNode; onCli
         color: "#9fdfff",
         borderRadius: 7,
         padding: "7px 11px",
-        fontSize: 11,
+        fontSize: 13,
         fontWeight: 800,
         cursor: "pointer",
         lineHeight: 1.1,
@@ -267,7 +267,7 @@ function ImageTag({ align, children }: { align: "left" | "right"; children: Reac
         background: "rgba(2,6,23,0.76)",
         color: "#dff9ff",
         padding: "3px 8px",
-        fontSize: 11,
+        fontSize: 13,
         borderRadius: 5,
         fontFamily: "monospace",
         pointerEvents: "none",

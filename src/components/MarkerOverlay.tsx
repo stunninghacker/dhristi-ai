@@ -231,7 +231,7 @@ export default function MarkerOverlay({
                   background: preliminaryMode ? "#7dd3fc" : selected ? "#7dd3fc" : "rgba(2,6,23,0.84)",
                   border: preliminaryMode ? "1px solid #bdf4ff" : "1px solid rgba(125,211,252,0.86)",
                   color: preliminaryMode || selected ? "#03101a" : "#dff9ff",
-                  fontSize: 9,
+                  fontSize: 13,
                   lineHeight: `${badge.height - 1}px`,
                   fontWeight: 900,
                   fontFamily: "monospace",
@@ -292,7 +292,7 @@ export default function MarkerOverlay({
                 : "0 3px 10px rgba(0,0,0,0.34)",
               cursor: "pointer",
               pointerEvents: "auto",
-              fontSize: 10,
+              fontSize: 13,
               fontWeight: 900,
               fontFamily: "monospace",
               lineHeight: 1,
@@ -339,13 +339,13 @@ function MarkerTooltip({
         zIndex: 8,
       }}
     >
-      <span style={{ display: "block", color: "#7dd3fc", fontSize: 11, fontWeight: 900, marginBottom: 3 }}>
+      <span style={{ display: "block", color: "#7dd3fc", fontSize: 13, fontWeight: 900, marginBottom: 3 }}>
         {label ?? (preliminaryMode ? "Review region" : "Region")}
       </span>
-      <span style={{ display: "block", color: "#c8dce8", fontSize: 10, lineHeight: 1.35 }}>
+      <span style={{ display: "block", color: "#c8dce8", fontSize: 13, lineHeight: 1.35 }}>
         Score: {region.score}
       </span>
-      <span style={{ display: "block", color: preliminaryMode ? "#cbd5e1" : "#8ba3bd", fontSize: 10, lineHeight: 1.35 }}>
+      <span style={{ display: "block", color: preliminaryMode ? "#cbd5e1" : "#8ba3bd", fontSize: 13, lineHeight: 1.35 }}>
         {preliminaryMode ? "Assessment: Not confirmed change" : region.type}
       </span>
     </span>

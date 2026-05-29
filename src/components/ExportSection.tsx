@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { AnalysisResult, ValidationMetricsReport } from "../types";
 import { jsPDF } from "jspdf";
 import { getReliabilityPossibleCauses } from "../utils/reliabilityCauses";
+import { countVisualFlagRegions } from "../utils/preliminary";
 
 function downloadBlob(data: string | Blob, filename: string, mime: string) {
   const blob = data instanceof Blob ? data : new Blob([data], { type: mime });
@@ -39,17 +40,36 @@ function formatAreaM2(areaM2: number | null): string {
 export default function ExportSection({
   result,
   validationMetrics,
+  secureMode = false,
+  classificationLevel = "UNCLASSIFIED",
+  analystName = "",
+  analystOrg = "",
+  caseReference = "",
 }: {
   result: AnalysisResult;
   validationMetrics: ValidationMetricsReport;
+  secureMode?: boolean;
+  classificationLevel?: string;
+  analystName?: string;
+  analystOrg?: string;
+  caseReference?: string;
 }) {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [jsonOpen, setJsonOpen] = useState(false);
   const [fullJsonOpen, setFullJsonOpen] = useState(false);
   const reliabilityPossibleCauses = getReliabilityPossibleCauses(result.sceneComparability);
+  const visualFlagCount = countVisualFlagRegions(result.detections);
 
   const exportPayload = {
     ...result,
+    reportMetadata: {
+      analyst: analystName,
+      organization: analystOrg,
+      caseReference,
+      classificationLevel: secureMode ? classificationLevel : undefined,
+      secureMode,
+    },
+    highPriorityFlags: visualFlagCount,
     images: undefined,
     detections: result.detections.map(detection => ({
       ...detection,
@@ -102,10 +122,31 @@ export default function ExportSection({
   };
 
   const downloadAnnotated = () => {
-    const a = document.createElement("a");
-    a.href = result.images.annotatedImage;
-    a.download = "annotated_review_zones.png";
-    a.click();
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement("canvas");
+      c.width = img.naturalWidth;
+      c.height = img.naturalHeight;
+      const ctx = c.getContext("2d")!;
+      ctx.drawImage(img, 0, 0);
+      if (secureMode) {
+        ctx.save();
+        ctx.font = `bold ${Math.max(14, c.width * 0.025)}px monospace`;
+        ctx.fillStyle = "rgba(255,200,50,0.35)";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        const watermarkText = `PRELIMINARY — NOT FOR DISTRIBUTION [${classificationLevel}]`;
+        const cx = c.width / 2, cy = c.height / 2;
+        ctx.translate(cx, cy);
+        ctx.rotate(-Math.PI / 6);
+        ctx.fillText(watermarkText, 0, 0);
+        ctx.restore();
+      }
+      c.toBlob(blob => {
+        if (blob) downloadBlob(blob, "annotated_review_zones.png", "image/png");
+      });
+    };
+    img.src = result.images.annotatedImage;
   };
 
   const downloadJSON = () => {
@@ -130,6 +171,17 @@ export default function ExportSection({
 
       const gap = (mm = 4) => { y += mm; };
 
+      const headerId = `${caseReference || "N/A"} / ${result.timestampUtc.replace(/[/:]/g, "-")}`;
+
+      if (secureMode) {
+        doc.setFontSize(7);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(251, 191, 36);
+        doc.text(safeText(`CLASSIFICATION: ${classificationLevel} — PRELIMINARY — NOT FOR DISTRIBUTION`), ML, y);
+        doc.text(safeText(headerId), W - MR, y, { align: "right" });
+        y += 6;
+      }
+
       doc.setFillColor(8, 13, 22);
       doc.rect(0, 0, 210, 297, "F");
       doc.setDrawColor(56, 189, 248);
@@ -137,15 +189,17 @@ export default function ExportSection({
       doc.line(ML, y - 4, ML + TW, y - 4);
 
       line("AI-BASED SATELLITE INTELLIGENCE SYSTEM", 18, true, [255, 255, 255]);
+      line("Formal Analysis Report", 10, false, [139, 163, 189]);
       gap(2);
       doc.setDrawColor(30, 53, 84);
       doc.setLineWidth(0.4);
       doc.line(ML, y, ML + TW, y);
       gap(5);
 
-      line(`Mission ID: SAT-INTEL-01`, 9, false, [139, 163, 189]);
-      line(`Analyst: Active Session`, 9, false, [139, 163, 189]);
-      line(`Generated: ${result.timestampUtc}`, 9, false, [139, 163, 189]);
+      line(`Document ID: ${headerId}`, 9, false, [139, 163, 189]);
+      line(`Analyst: ${analystName || "Unnamed"}`, 9, false, [139, 163, 189]);
+      line(`Organization: ${analystOrg || "N/A"}`, 9, false, [139, 163, 189]);
+      line(`Case Ref: ${caseReference || "N/A"}`, 9, false, [139, 163, 189]);
       line(`Profile: ${result.profile}`, 9, false, [139, 163, 189]);
       gap(4);
 
@@ -155,7 +209,7 @@ export default function ExportSection({
         ["Analysis priority", result.analysisPriority],
         [result.sceneComparability === "VERY LOW" ? "Review surface" : "Changed area", `${result.changedAreaPct.toFixed(3)}%`],
         [result.sceneComparability === "VERY LOW" ? "Review regions" : "Detections", String(result.detectionCount)],
-        ["High-priority flags", String(result.highPriorityFlags)],
+        ["Visual flags", String(visualFlagCount)],
         ["Max score", `${result.maxScore}/100`],
         ["Confidence", `${result.confidence}/100`],
         ["SSIM", result.ssim.toFixed(4)],
@@ -200,11 +254,12 @@ export default function ExportSection({
       line("VALIDATION METRICS", 12, true, [56, 189, 248]);
       gap(1);
       const validationItems = [
-        ["Total review regions", String(validationMetrics.totalReviewRegions)],
-        ["High confidence regions", String(validationMetrics.highConfidenceRegions)],
-        ["Preliminary regions", String(validationMetrics.preliminaryRegions)],
-        ["Scene comparability", validationMetrics.sceneComparability],
         ["SSIM score", validationMetrics.ssimScore.toFixed(4)],
+        ["Mean absolute difference", `${validationMetrics.meanAbsoluteDifference.toFixed(2)} intensity units`],
+        ["PSNR", validationMetrics.psnr === null ? "Infinity dB" : `${validationMetrics.psnr.toFixed(2)} dB`],
+        ["Registration shift", `X: ${validationMetrics.registrationShift[0]}px, Y: ${validationMetrics.registrationShift[1]}px`],
+        ["Review region density", `${validationMetrics.reviewRegionDensityPct.toFixed(3)}%`],
+        ["Confidence band", validationMetrics.confidenceBand],
         ["Confidence score", `${validationMetrics.confidenceScore}/100`],
         ["Manual verification required", validationMetrics.manualVerificationRequired ? "Yes" : "No"],
         ["True positives", valueOrBlank(validationMetrics.groundTruth.truePositives)],
@@ -325,6 +380,7 @@ export default function ExportSection({
     analysisPriority: result.analysisPriority,
     changedAreaPct: result.changedAreaPct,
     detectionCount: result.detectionCount,
+    highPriorityFlags: visualFlagCount,
     confidence: result.confidence,
     ssim: result.ssim,
     reliability: result.reliability,
@@ -384,7 +440,7 @@ export default function ExportSection({
           >
             <span style={{ fontSize: 24 }}>{btn.icon}</span>
             <span style={{ color: "#3ab5ff" }}>{btn.label}</span>
-            <span style={{ fontSize: 11, color: "#4a7a9b", fontWeight: 400 }}>{btn.sub}</span>
+            <span style={{ fontSize: 13, color: "#4a7a9b", fontWeight: 400 }}>{btn.sub}</span>
           </button>
         ))}
       </div>
@@ -393,7 +449,7 @@ export default function ExportSection({
         <pre
           style={{
             color: "#7dd3fc",
-            fontSize: 11,
+            fontSize: 13,
             overflowX: "auto",
             lineHeight: 1.6,
             margin: 0,
@@ -409,7 +465,7 @@ export default function ExportSection({
         <pre
           style={{
             color: "#9fb5cc",
-            fontSize: 10,
+            fontSize: 13,
             overflowX: "auto",
             lineHeight: 1.5,
             maxHeight: 420,
@@ -432,7 +488,7 @@ function Expander({ label, open, onToggle, children }: {
   children: React.ReactNode;
 }) {
   return (
-    <div style={{ border: "1px solid #18283e", borderRadius: 10, overflow: "hidden", marginBottom: 8 }}>
+    <div style={{ border: "1px solid #18283e", borderRadius: 8, overflow: "hidden", marginBottom: 8 }}>
       <button
         onClick={onToggle}
         style={{
@@ -447,8 +503,8 @@ function Expander({ label, open, onToggle, children }: {
           fontFamily: "inherit",
         }}
       >
-        <span style={{ fontWeight: 600, fontSize: 12, color: "#9fb5cc" }}>{label}</span>
-        <span style={{ fontSize: 11, color: "#4a6a85" }}>{open ? "▲ collapse" : "▼ expand"}</span>
+        <span style={{ fontWeight: 600, fontSize: 13, color: "#9fb5cc" }}>{label}</span>
+        <span style={{ fontSize: 13, color: "#4a6a85" }}>{open ? "▲ collapse" : "▼ expand"}</span>
       </button>
       {open && (
         <div style={{ background: "#06101a", padding: "12px 14px" }}>
