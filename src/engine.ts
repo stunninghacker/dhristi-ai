@@ -1592,7 +1592,7 @@ export async function analysePair(
     d.id = index + 1;
   });
 
-  const highFlags = visualFlagDetections.length;
+  const highFlags = detections.length;
   const maxScore = outputDetections.reduce((m, d) => Math.max(m, d.score), 0);
   const reviewRegionArea = outputDetections.reduce((sum, detection) => sum + detection.areaPx, 0);
   const reviewRegionDensityPct = Math.round((reviewRegionArea / Math.max(1, frameArea)) * 100000) / 1000;

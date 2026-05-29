@@ -20,7 +20,7 @@ import { analysePair, loadImageFromFile, generateDemoImages, canvasToDataURL } f
 import { extractGeoMetadata } from "./geospatial";
 import type { AnalysisResult, ProfileKey, ActiveTab, GeoReferencePair, ValidationGroundTruth, TimelineMetadata } from "./types";
 import { extractExifDate } from "./utils/exifDate";
-import { countVisualFlagRegions, isPreliminaryReview } from "./utils/preliminary";
+import { isPreliminaryReview } from "./utils/preliminary";
 import { runQualityCheck } from "./utils/qualityCheck";
 import type { QualityWarning } from "./utils/qualityCheck";
 import { getAuditLog, appendAuditLog } from "./utils/auditLog";
@@ -262,7 +262,7 @@ export default function App() {
   };
 
   const preliminaryReview = result ? isPreliminaryReview(result) : false;
-  const highFlagCount = result ? countVisualFlagRegions(result.detections) : 0;
+  const highFlagCount = result ? result.highPriorityFlags : 0;
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#080d16" }}>
@@ -741,6 +741,18 @@ export default function App() {
                   )}
                 </div>
 
+                {/* All filtered message */}
+                {highFlagCount === 0 && result.regionsFiltered > 0 && (
+                  <div style={{
+                    background: "rgba(245,158,11,0.1)", border: "1px solid #f59e0b",
+                    color: "#facc15", padding: "12px 16px", borderRadius: 8, marginBottom: 12,
+                    fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 10,
+                  }}>
+                    <span style={{ fontSize: 16 }}>⚠️</span>
+                    <span>All regions filtered — lower False Positive Filter to see candidates</span>
+                  </div>
+                )}
+
                 {/* Alignment caption */}
                 <div style={{ color: "#4a6a85", fontSize: 13, marginBottom: 16, display: "flex", gap: 16, flexWrap: "wrap" }}>
                   <span>Alignment used: <span style={{ color: result.alignmentUsed ? "#34d399" : "#f59e0b" }}>{result.alignmentUsed ? "YES" : "NO"}</span></span>
@@ -816,9 +828,13 @@ export default function App() {
                   fontSize: 18, fontWeight: 800, color: "#e8f2ff", marginBottom: 16,
                   borderBottom: "1px solid #18283e", paddingBottom: 12
                 }}>
-                  {preliminaryReview
-                    ? `${highFlagCount} visual flag(s) identified. Manual verification required.`
-                    : `${result.detectionCount} change candidate(s) identified for analyst inspection`}
+                  {preliminaryReview && highFlagCount === 0 && result.detectionCount > 0
+                    ? `✓ 0 high-confidence flags — ${result.detectionCount} preliminary candidates below threshold. Adjust False Positive Filter or Confidence slider to review.`
+                    : preliminaryReview && highFlagCount === 0
+                      ? "✓ 0 high-confidence flags — no candidates above threshold."
+                      : preliminaryReview
+                        ? `${highFlagCount} visual flag(s) identified. Manual verification required.`
+                        : `${result.detectionCount} change candidate(s) identified for analyst inspection`}
                   {result.regionsFiltered > 0 && (
                     <span style={{ color: "#f59e0b", fontSize: 13, fontWeight: 600, marginLeft: 12 }}>
                       ({result.regionsFiltered} regions filtered as noise)
