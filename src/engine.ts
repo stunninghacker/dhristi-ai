@@ -1124,70 +1124,113 @@ export function generateDemoImages(): [HTMLCanvasElement, HTMLCanvasElement] {
   const base = createCanvas(w, h);
   const ctx = base.getContext("2d")!;
 
-  // Base terrain
-  ctx.fillStyle = "#263b2c";
+  // ── Deterministic pseudo-random seeded helpers ──
+  function seeded(s: number) { const n = Math.sin(s * 127.1 + 311.7) * 43758.5; return n - Math.floor(n); }
+  function srgb(s: number, ri: number, gi: number, bi: number) {
+    return `rgb(${Math.floor(seeded(s + ri) * 80 + 70)},${Math.floor(seeded(s + gi) * 75 + 85)},${Math.floor(seeded(s + bi) * 60 + 50)})`;
+  }
+
+  // ── Base terrain ──
+  ctx.fillStyle = "#3a5540";
   ctx.fillRect(0, 0, w, h);
 
-  // Noise simulation (simple random rects for fields)
-  const seed = (n: number) => { n = Math.sin(n * 127.1 + 311.7) * 43758.5; return n - Math.floor(n); };
-  for (let i = 0; i < 65; i++) {
-    const x = Math.floor(seed(i * 2) * w);
-    const y = Math.floor(seed(i * 2 + 1) * h);
-    const rw = 30 + Math.floor(seed(i * 3) * 65);
-    const rh = 18 + Math.floor(seed(i * 3 + 1) * 52);
-    const gr = Math.floor(seed(i * 4) * 85 + 50);
-    ctx.fillStyle = `rgb(${Math.floor(gr * 0.7)},${gr},${Math.floor(gr * 0.5)})`;
-    ctx.fillRect(x, y, Math.min(rw, w - x - 1), Math.min(rh, h - y - 1));
+  // Vegetation patches (green fields, forest blocks)
+  for (let i = 0; i < 30; i++) {
+    const x = Math.floor(seeded(i * 100) * (w - 40));
+    const y = Math.floor(seeded(i * 100 + 1) * (h - 40));
+    const rw = 35 + Math.floor(seeded(i * 100 + 2) * 70);
+    const rh = 25 + Math.floor(seeded(i * 100 + 3) * 50);
+    ctx.fillStyle = srgb(i * 200, 10, 50, 5);
+    ctx.fillRect(x, y, Math.min(rw, w - x - 2), Math.min(rh, h - y - 2));
   }
+
+  // Agricultural fields (lighter brown/gold patches)
+  for (let i = 0; i < 18; i++) {
+    const x = Math.floor(seeded(i * 300 + 50) * (w - 30));
+    const y = Math.floor(seeded(i * 300 + 51) * (h - 30));
+    const rw = 30 + Math.floor(seeded(i * 300 + 52) * 60);
+    const rh = 20 + Math.floor(seeded(i * 300 + 53) * 45);
+    ctx.fillStyle = srgb(i * 400, 80, 40, 0);
+    ctx.fillRect(x, y, Math.min(rw, w - x - 2), Math.min(rh, h - y - 2));
+  }
+
+  // Water body (lake, top-right quadrant)
+  ctx.fillStyle = "#1a3f5e";
+  ctx.beginPath();
+  ctx.ellipse(580, 280, 85, 60, 0, 0, Math.PI * 2);
+  ctx.fill();
 
   // Roads
-  for (let i = 0; i < 8; i++) {
-    const y = 20 + Math.floor(seed(i + 200) * (h - 40));
-    ctx.strokeStyle = "#7a6e64";
-    ctx.lineWidth = 3 + Math.floor(seed(i + 300) * 4);
-    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y + Math.floor(seed(i + 400) * 100 - 50)); ctx.stroke();
-  }
-  for (let i = 0; i < 6; i++) {
-    const x = 20 + Math.floor(seed(i + 500) * (w - 40));
-    ctx.strokeStyle = "#6e6a60";
-    ctx.lineWidth = 2 + Math.floor(seed(i + 600) * 3);
-    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + Math.floor(seed(i + 700) * 100 - 50), h); ctx.stroke();
+  ctx.strokeStyle = "#7a786a";
+  ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(0, 220); ctx.lineTo(340, 220); ctx.lineTo(520, 280); ctx.lineTo(760, 280); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(280, 0); ctx.lineTo(280, 220); ctx.lineTo(340, 380); ctx.lineTo(310, 460); ctx.stroke();
+  ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(80, 0); ctx.lineTo(80, 160); ctx.lineTo(180, 320); ctx.stroke();
+
+  // Existing structures (small buildings)
+  for (const [bx, by, bw, bh] of [[100, 70, 28, 22], [135, 72, 18, 18], [160, 75, 22, 20], [400, 160, 35, 28]]) {
+    ctx.fillStyle = "#8a8a82";
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.fillStyle = "#7a7a72";
+    ctx.fillRect(bx + 3, by + 3, bw - 6, bh - 6);
   }
 
-  // Built-up texture
-  for (let i = 0; i < 180; i++) {
-    const x = Math.floor(seed(i + 800) * (w - 8));
-    const y = Math.floor(seed(i + 900) * (h - 8));
-    ctx.fillStyle = "#9e9b8f";
-    ctx.fillRect(x, y, 3 + Math.floor(seed(i + 1000) * 5), 3 + Math.floor(seed(i + 1100) * 5));
+  // Bare soil patches
+  for (const [sx, sy, sw, sh] of [[520, 100, 55, 40], [640, 380, 50, 38], [460, 320, 45, 35]]) {
+    ctx.fillStyle = "#8a7a5a";
+    ctx.fillRect(sx, sy, sw, sh);
   }
 
-  // After image
+  // ── AFTER image (copy of base then apply changes) ──
   const after = createCanvas(w, h);
   const actx = after.getContext("2d")!;
   actx.drawImage(base, 0, 0);
 
-  // New construction zones
-  const zones: [number, number, number, number][] = [[490, 170, 95, 75], [250, 290, 110, 90], [585, 305, 80, 80]];
-  for (const [x, y, rw, rh] of zones) {
-    actx.fillStyle = "#b4a88e";
-    actx.fillRect(x, y, rw, rh);
-    for (let i = 0; i < 6; i++) {
-      actx.fillStyle = "#646259";
-      actx.fillRect(x + 10 + i * 11, y + 12, 8, rh - 26);
-    }
-  }
+  // 1. NEW CONSTRUCTION: replace a green field (center-left) with a tan building complex
+  actx.fillStyle = "#a8a08e";
+  actx.fillRect(190, 95, 58, 42);
+  actx.fillStyle = "#b8b09e";
+  actx.fillRect(195, 100, 10, 10);
+  actx.fillRect(210, 100, 10, 10);
+  actx.fillRect(225, 100, 10, 10);
+  actx.fillRect(195, 115, 10, 10);
+  actx.fillRect(210, 115, 10, 10);
+  actx.fillRect(225, 115, 10, 10);
 
-  // New road
-  actx.strokeStyle = "#9c9684";
-  actx.lineWidth = 6;
-  actx.beginPath(); actx.moveTo(430, 250); actx.lineTo(720, 365); actx.stroke();
+  // 2. CLEARED LAND: change a vegetation patch (mid-left) to bare soil (deforestation)
+  actx.fillStyle = "#9a8a68";
+  actx.beginPath();
+  actx.ellipse(80, 260, 38, 30, 0, 0, Math.PI * 2);
+  actx.fill();
+  actx.fillStyle = "#8a7a58";
+  actx.beginPath();
+  actx.ellipse(80, 260, 22, 16, 0, 0, Math.PI * 2);
+  actx.fill();
 
-  // Slight brightness boost
-  actx.globalCompositeOperation = "overlay";
-  actx.fillStyle = "rgba(255,255,255,0.04)";
-  actx.fillRect(0, 0, w, h);
-  actx.globalCompositeOperation = "source-over";
+  // 3. WATER LEVEL CHANGE: shoreline receded — fill part of lake with sediment
+  actx.fillStyle = "#5a6a4a";
+  actx.beginPath();
+  actx.ellipse(540, 260, 30, 20, 0.3, 0, Math.PI * 2);
+  actx.fill();
+  actx.fillStyle = "#6a7a52";
+  actx.beginPath();
+  actx.ellipse(542, 258, 18, 12, 0.3, 0, Math.PI * 2);
+  actx.fill();
+
+  // 4. NEW ROAD: extension connecting to the main road network
+  actx.strokeStyle = "#a09a88";
+  actx.lineWidth = 5;
+  actx.beginPath(); ctx.moveTo(340, 220); ctx.lineTo(420, 310); ctx.lineTo(580, 340); ctx.stroke();
+
+  // 5. NEW STRUCTURE: industrial building in the bottom-right bare area
+  actx.fillStyle = "#7a8686";
+  actx.fillRect(648, 382, 38, 32);
+  actx.fillStyle = "#6a7676";
+  actx.fillRect(653, 387, 10, 8);
+  actx.fillRect(668, 387, 10, 8);
+  actx.fillRect(653, 399, 10, 8);
+  actx.fillRect(668, 399, 10, 8);
 
   return [base, after];
 }
@@ -1293,6 +1336,7 @@ export async function analysePair(
   geoReferences?: GeoReferencePair,
   normalize?: boolean,
   falsePositiveFilter?: number,
+  onProgress?: (pct: number) => void,
 ): Promise<AnalysisResult> {
 
   const now = new Date();
@@ -1350,6 +1394,7 @@ export async function analysePair(
     normalizeRGBCanvas(c1);
     normalizeRGBCanvas(c2);
   }
+  onProgress?.(15);
 
   const p1 = getPixels(c1);
   let p2raw = getPixels(c2);
@@ -1369,6 +1414,7 @@ export async function analysePair(
     p2raw = getPixels(c2);
     alignmentShift = [shiftEst.dx, shiftEst.dy];
   }
+  onProgress?.(35);
 
   const p2norm = matchColorStats(p2raw, p1, resolution * h1);
 
@@ -1393,6 +1439,7 @@ export async function analysePair(
   std1 = Math.sqrt(std1 / g1.length); std2 = Math.sqrt(std2 / g2.length);
   const brightnessDelta = Math.abs(m1 - m2);
   const contrastDelta = Math.abs(std1 - std2) / Math.max(std1, 1);
+  onProgress?.(55);
 
   // ── Change surface ──
   const isVeryDifferent = ssimScore < 0.20;
@@ -1468,6 +1515,7 @@ export async function analysePair(
   let detections = extractDetections(surface, edge, special, mask, resolution, h1, profile, minArea, prelimConf, ssimScore);
   detections = mergeOverlappingDetections(detections);
   detections = mergeProximateDetections(detections, 10);
+  onProgress?.(75);
 
   let usedHintMode = false;
   if (detections.length === 0 && prelimChangedPct < 3.0) {
@@ -1572,6 +1620,8 @@ export async function analysePair(
     notes.push("Reliability tier VERIFIED: image pair quality supports high-trust automated triage (analyst sign-off still required).");
   }
 
+  onProgress?.(90);
+
   // ── Annotated & heatmap (all stored as data URL strings) ──
   const base = c1;
   const reg = c2;
@@ -1596,6 +1646,7 @@ export async function analysePair(
   const annotatedImage = annotated;
   const heatmapImage = imgToURL(heatmap);
   console.log("imageType:", typeof annotatedImage, annotatedImage.slice(0, 30));
+  onProgress?.(100);
 
   return {
     timestampUtc: ts,

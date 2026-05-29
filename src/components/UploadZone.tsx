@@ -7,9 +7,10 @@ interface UploadZoneProps {
   file: File | null;
   onFile: (f: File) => void;
   previewUrl?: string;
+  disabled?: boolean;
 }
 
-export default function UploadZone({ label, sublabel, file, onFile, previewUrl }: UploadZoneProps) {
+export default function UploadZone({ label, sublabel, file, onFile, previewUrl, disabled }: UploadZoneProps) {
   const ref = useRef<HTMLInputElement>(null);
   const [drag, setDrag] = useState(false);
 
@@ -22,10 +23,11 @@ export default function UploadZone({ label, sublabel, file, onFile, previewUrl }
   return (
     <div
       className={`drop-zone${drag ? " drag-over" : ""}`}
-      onClick={() => ref.current?.click()}
-      onDragOver={e => { e.preventDefault(); setDrag(true); }}
+      onClick={() => { if (!disabled) ref.current?.click(); }}
+      onDragOver={e => { if (!disabled) { e.preventDefault(); setDrag(true); } }}
       onDragLeave={() => setDrag(false)}
-      onDrop={e => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
+      onDrop={e => { if (!disabled) { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); } }}
+      style={{ pointerEvents: disabled ? "none" : "auto", opacity: disabled ? 0.5 : 1, transition: "opacity 0.2s" }}
     >
       <input
         ref={ref} type="file" accept="image/png,image/jpeg,image/jpg,.tif,.tiff"
@@ -35,18 +37,23 @@ export default function UploadZone({ label, sublabel, file, onFile, previewUrl }
 
       {previewUrl ? (
         <div>
-          <img
-            src={previewUrl}
-            alt={label}
-            style={{
-              maxHeight: 120,
-              maxWidth: "100%",
-              borderRadius: 8,
-              objectFit: "contain",
-              background: "#020617",
-              marginBottom: 8,
-            }}
-          />
+          <div style={{
+            border: "1px solid rgba(56,189,248,0.3)",
+            borderRadius: 8, overflow: "hidden", marginBottom: 8,
+            boxShadow: "0 0 12px rgba(56,189,248,0.15)",
+          }}>
+            <img
+              src={previewUrl}
+              alt={label}
+              style={{
+                minHeight: 200,
+                maxWidth: "100%",
+                objectFit: "contain",
+                background: "#020617",
+                display: "block",
+              }}
+            />
+          </div>
           <div style={{ color: "#4fc3ff", fontSize: 13, fontWeight: 600 }}>{file?.name}</div>
           <div style={{ color: "#8ba3bd", fontSize: 13, marginTop: 2 }}>Click to replace</div>
         </div>

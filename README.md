@@ -1,123 +1,61 @@
-# Dhristi AI-Based Satellite Intelligence System
+# 🛰️ Drishti AI
 
-Browser-native satellite change detection — no server, no ML dependencies, purely Canvas 2D pixel analysis.
-
-[![Vercel Deployment](https://img.shields.io/badge/Live%20Demo-dhristi--ai.vercel.app-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://dhristi-ai.vercel.app)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)
-![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript)
-![Vite](https://img.shields.io/badge/Vite-7-646CFF?logo=vite)
-![License](https://img.shields.io/badge/License-MIT-yellow)
+![TypeScript](https://img.shields.io/badge/TypeScript-97%25-3178C6?logo=typescript)
+![License](https://img.shields.io/badge/License-MIT-green)
+![Status](https://img.shields.io/badge/Status-Active-brightgreen)
+![Offline](https://img.shields.io/badge/Runs-Offline-blue)
 
----
+> Browser-native satellite change detection.
+> No server. No ML dependencies. Zero data egress.
 
-> **🚨 IMPORTANT DISCLAIMER**
->
-> This tool performs automated change detection on satellite or aerial imagery using purely browser-based pixel analysis. It does **not** use machine learning, GPU inference, or server-side processing. All analysis is approximate and intended as a **first-pass triage aid** only.
->
-> **Do not** rely solely on this tool for operational, legal, safety-critical, or defense decision-making. Always verify findings with qualified analysts and authoritative sources.
->
-> The system does not connect to any external service — all data stays in your browser.
+## Live Demo
+[https://dhristi-ai.vercel.app](https://dhristi-ai.vercel.app)
 
----
+## What it does
+- Compares before/after satellite imagery using Canvas 2D CV pipeline
+- Detects structural, vegetation, water, and urban change regions
+- Exports analysis reports as CSV / JSON / PDF with audit trail
 
-## Features
+## How it works
+T1 → Normalize → Register → SSIM Score
+├── SSIM < 0.5 → Global RGB Difference Mode
+└── SSIM ≥ 0.5 → Localized Hotspot Detection Mode
+         ↓
+Region Scoring → False Positive Filter → Export
 
-| Capability | Description |
-|---|---|
-| **Dual detection pipeline** | SSIM-driven dispatch: global RGB difference (low similarity) or localized multi-layer hotspot detection (high similarity) |
-| **Automatic registration** | Coarse-to-fine translational alignment corrects camera/sensor shift before comparison |
-| **6 Analysis profiles** | Defence, Urban, Environment, Disaster, Agriculture, Water — each with tuned metrics and color coding |
-| **Reliability tiering** | Output automatically classified as VERIFIED / REVIEW / PRELIMINARY based on SSIM, alignment, confidence, and scene comparability |
-| **Change classification** | Review regions auto-labelled as Structure / Vegetation / Water / Urban Expansion based on spectral-spatial characteristics |
-| **Geo-referencing** | Optional lat/lng corner input converts pixel detections to approximate geographic coordinates |
-| **Secure Mode** | Toggle ON to activate classification marking (UNCLASSIFIED/RESTRICTED/CONFIDENTIAL), offline banner, and PDF/PNG watermarking |
-| **Alert generation** | Severity-banded alerts (CRITICAL/WARNING/INFO) surface high-confidence detections and anomalous scene changes |
-| **Analyst review** | Per-region decision log with visual flag detection, MGRS-style grid references, and priority sorting |
-| **Export formats** | CSV detection log, annotated PNG map, structured JSON report, formal PDF report — all downloadable client-side |
-| **Audit trail** | Session-level audit log persisted in sessionStorage with timestamps for every user action |
-| **Scene quality checks** | Cloud detection, haze estimation, brightness/contrast delta analysis with inline warnings |
-| **Image normalization** | Optional histogram alignment for multi-sensor pairs before difference computation |
-
-## Project Structure
-
-```
-src/
-├── App.tsx                        # Main application shell, state, layout
-├── engine.ts                      # Core detection pipeline (canvas-based)
-├── types/index.ts                 # TypeScript types & interfaces
-├── profiles.ts                    # Profile definitions & weights
-├── geospatial.ts                  # Geo metadata extraction
-├── components/
-│   ├── Sidebar.tsx                # Collapsible parameters panel
-│   ├── UploadZone.tsx             # File upload area
-│   ├── DetectionTable.tsx         # Review regions table with filters
-│   ├── ImageViewer.tsx            # Image display & comparison
-│   ├── ExportSection.tsx          # CSV/JSON/PDF/PNG export
-│   ├── AuditLogPanel.tsx          # Audit trail viewer
-│   └── ...                        # Additional panels & cards
-├── utils/
-│   ├── geoBounds.ts               # Coordinate parsing & conversion
-│   ├── qualityCheck.ts            # Cloud/haze detection
-│   ├── auditLog.ts                # Session audit storage
-│   └── ...
-└── public/
-```
-
-## Quickstart
-
+## Quick Start
 ```bash
 npm install
 npm run dev
 ```
 
-Open the local URL, upload **T1 (baseline)** and **T2 (recent)** images (PNG/JPG/TIFF), or enable demo images, then click **Run Analysis**.
-
 ## Analysis Profiles
+| Profile | Use Case | Sensitivity |
+|---|---|---|
+| Defence/Security | Infrastructure, objects | High |
+| Urban Planning | Buildings, roads | Medium |
+| Environment | Vegetation, water | Medium |
+| Disaster Response | Rapid damage | Very High |
+| Agriculture | Crop change | Low |
+| Water Bodies | Flood, drought | Medium |
 
-| Profile | Best for |
-|---|---|
-| **Defence** | Military installations, strategic assets, restricted zones |
-| **Urban** | Construction sites, infrastructure changes, building footprints |
-| **Environment** | Vegetation loss, coastal erosion, land degradation |
-| **Disaster** | Flood mapping, earthquake damage, fire scar assessment |
-| **Agriculture** | Crop rotation, irrigation changes, field boundary shifts |
-| **Water** | Reservoir levels, river course changes, shoreline retreat |
+## Features
+- Dual CV pipeline (SSIM-routed)
+- Cloud/haze detection with warnings
+- Histogram equalization normalization
+- Translational image registration
+- Coordinate system (lat/lng input)
+- Secure mode with classification labels
+- Audit log with session persistence
+- Evidence export (CSV/JSON/PDF)
 
-Each profile applies specific weightings to change magnitude, compactness, area, mean delta, and aspect ratio during scoring.
-
-## How It Works
-
-1. **Registration** — coarse-to-fine translational alignment finds the best offset between T1 and T2 using cross-correlation
-2. **SSIM dispatch** — Structural Similarity Index determines which pipeline to run:
-   - **SSIM < 0.5**: Global RGB difference surface with adaptive thresholding
-   - **SSIM ≥ 0.5**: Localized multi-layer hotspot detection (3×3 sliding window on intensity/edge/texture channels)
-3. **Region extraction** — morphological cleaning + connected-component labeling isolates candidate change regions
-4. **Profile scoring** — each region scored against the selected profile's weight matrix
-5. **Classification** — regions automatically tagged by object type using spectral-spatial heuristics
-6. **Tier assignment** — SSIM, alignment, confidence, and scene comparability determine VERIFIED / REVIEW / PRELIMINARY tier
-
-## Accuracy & Limitations
-
-- Automated pixel-based change detection **cannot achieve 100% accuracy** without ground truth
-- Registration is translational only (no full homography or terrain correction)
-- Accuracy degrades with cloud cover, seasonal variation, and different sensor types
-- Pixel grid references are **review aids only**, not survey-grade coordinates
-- Always treat **PRELIMINARY** results as indicative — analyst sign-off required
-- **VERIFIED** tier indicates strong image pair quality, not absence of change
-
-## Build
-
-```bash
-npm run build      # production build to dist/
-npm run preview    # preview production build locally
-```
-
-## Tech Stack
-
-React 19 · TypeScript · Vite · Canvas 2D API · jsPDF
-
-No server, no external ML APIs, no GPU required. Runs fully offline.
+## Roadmap
+- [ ] Multi-temporal stack analysis
+- [ ] Continuous monitoring mode
+- [ ] REST API for batch processing
+- [ ] Ground truth validation upload
+- [ ] Real-time alert webhooks
 
 ## License
-
-MIT
+MIT © 2026 stunninghacker

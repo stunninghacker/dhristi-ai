@@ -1,41 +1,126 @@
+import { PROFILES, PROFILE_KEYS } from "../profiles";
+
 export default function HowItWorks() {
   return (
     <div style={{ maxWidth: 820, padding: "8px 0" }}>
-      <SectionTitle>Methodology</SectionTitle>
-      <p style={{ color: "#9fb5cc", marginBottom: 20, lineHeight: 1.7, fontSize: 13 }}>
-        The system compares two satellite images from different times and generates analyst-review change candidates using a multi-layer computer vision pipeline.
-      </p>
 
-      <SectionTitle>Processing Pipeline</SectionTitle>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
+      {/* ─── Section 1: Pipeline Overview ─── */}
+      <SectionTitle>Pipeline Overview</SectionTitle>
+      <div style={{
+        background: "#0a1624", border: "1px solid #18283e", borderRadius: 8,
+        padding: "20px 24px", marginBottom: 24, overflowX: "auto",
+      }}>
+        <pre style={{
+          color: "#7dd3fc", fontSize: 12, lineHeight: 1.8,
+          fontFamily: "monospace", margin: 0, whiteSpace: "pre",
+        }}>
+{`T1 Image ──┬── Normalize ──┬── Register ──┬── SSIM ──┬── Route ──┬── Region Detection ──┬── Score ──┬── Export
+           │               │              │          │           │                      │           │
+           └── T2 Image ───┘              │          │           │                      │           │
+                                          │          │           │                      │           │
+                                    ┌─────┘     ┌────┘      ┌───┘                      │           │
+                                    ▼           ▼           ▼                           ▼           ▼
+                              Brightness   Alignment   SSIM < 0.5 ── Global Diff      Priority     CSV/JSON
+                              Normalize    Score       SSIM ≥ 0.5 ── Localized        Scoring      PDF/PNG
+                                                       Hotspot`}
+        </pre>
+      </div>
+
+      {/* ─── Section 2: Analysis Modes ─── */}
+      <SectionTitle>Analysis Modes</SectionTitle>
+      <div style={{
+        display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 24,
+      }}>
+        <ModeCard
+          title="Global Difference Mode"
+          trigger="SSIM < 0.5"
+          triggerColor="#f59e0b"
+          description="When images differ significantly (low structural similarity), the engine falls back to a direct RGB difference surface. A mean + 0.5σ threshold is applied globally, and connected regions ≥ 100px are extracted. This mode is designed for major scene changes — floods, fires, large-scale construction — where localized hotspot detection would miss broad-area signals."
+          details={[
+            "Single-channel grayscale absolute differencing",
+            "Adaptive threshold based on pixel statistics",
+            "Min region size: 100px, max 30% of frame",
+            "No Gaussian suppression applied",
+          ]}
+        />
+        <ModeCard
+          title="Localized Hotspot Mode"
+          trigger="SSIM ≥ 0.5"
+          triggerColor="#34d399"
+          description="For structurally similar image pairs, the engine builds a multi-layer change surface from spectral, structural, edge, and vegetation-index channels — each weighted by the active profile. A wide Gaussian (σ=31) subtracts broad seasonal/illumination drift, preserving only localized hotspots. Profile-specific bias and percentile gating tune the detection threshold."
+          details={[
+            "Profile-weighted multi-layer surface (4 channels)",
+            "Gaussian suppression of broad scene differences",
+            "Adaptive percentile + absolute thresholding",
+            "Safety valve caps mask at 10% of scene area",
+          ]}
+        />
+      </div>
+
+      {/* ─── Section 3: Profile System ─── */}
+      <SectionTitle>Profile System</SectionTitle>
+      <div style={{ overflowX: "auto", marginBottom: 24 }}>
+        <table style={{
+          width: "100%", borderCollapse: "collapse",
+          color: "#9fb5cc", fontSize: 12,
+        }}>
+          <thead>
+            <tr style={{ borderBottom: "1px solid #18283e" }}>
+              <TH>Profile</TH>
+              <TH>Bias</TH>
+              <TH>Structural</TH>
+              <TH>Spectral</TH>
+              <TH>Compact</TH>
+              <TH>Area</TH>
+              <TH>Edge</TH>
+              <TH>Max Det</TH>
+              <TH>Best For</TH>
+            </tr>
+          </thead>
+          <tbody>
+            {PROFILE_KEYS.map(key => {
+              const p = PROFILES[key];
+              return (
+                <tr key={key} style={{ borderBottom: "1px solid #12293d" }}>
+                  <td style={{ padding: "10px 8px", color: p.color, fontWeight: 700 }}>{key}</td>
+                  <TD>{p.thresholdBias}</TD>
+                  <TD>{p.structuralWeight.toFixed(2)}</TD>
+                  <TD>{p.spectralWeight.toFixed(2)}</TD>
+                  <TD>{p.compactnessWeight.toFixed(2)}</TD>
+                  <TD>{p.areaWeight.toFixed(2)}</TD>
+                  <TD>{p.edgeWeight.toFixed(2)}</TD>
+                  <TD>{p.maxDetections}</TD>
+                  <td style={{ padding: "10px 8px", color: "#6b8099", fontSize: 11, lineHeight: 1.5 }}>{p.summary}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* ─── Section 4: Limitations ─── */}
+      <SectionTitle>Limitations</SectionTitle>
+      <div style={{
+        background: "#0a1624", border: "1px solid #18283e", borderRadius: 8,
+        padding: "16px 20px",
+      }}>
         {[
-          ["1", "Image Ingestion", "Load T1 baseline and T2 recent images. Supports PNG, JPG, and TIFF formats."],
-          ["2", "Controlled Resizing", "Resize both images to the selected processing resolution while preserving aspect ratio."],
-          ["3", "Feature-Based Alignment", "Register T2 against T1 using structural correlation estimation. An alignment score quantifies registration quality."],
-          ["4", "Color Statistics Normalisation", "Match per-channel mean and standard deviation between images. This removes global lighting, sensor, and atmospheric tone differences without suppressing real local changes."],
-          ["5", "Multi-Layer Change Surface", "Compute profile-weighted spectral (chroma-only), structural (local contrast residual), edge/texture difference, vegetation index delta (ExG), and water-surface proxy layers."],
-          ["6", "Broad Scene Suppression", "Subtract a wide Gaussian (σ=31) from the raw change surface. This suppresses seasonal, illumination, and resolution-induced scene-wide differences while preserving localized hotspots."],
-          ["7", "Adaptive Thresholding", "Apply an absolute plus percentile-gated threshold. A safety valve tightens the threshold if the mask covers more than 10% of the scene, preventing false mass-detection."],
-          ["8", "Connected Region Extraction", "Identify spatially connected change zones above the threshold. Filter by minimum area, aspect ratio, and fill density to remove noise seams."],
-          ["9", "Priority Scoring", "Score each region by intensity, area, compactness, edge evidence, and spectral specificity — all weighted by the active analysis profile."],
-          ["10", "Confidence Calibration", "Compute a global confidence score based on SSIM, alignment quality, changed area fraction, brightness delta, and contrast delta. Dampen detection scores proportionally."],
-          ["11", "Low-Confidence Hints", "If no strong detections exist but weak localized signals remain after suppression, extract up to four analyst-review hints clearly labelled as low-confidence review regions."],
-          ["12", "Output Generation", "Annotated imagery, visual difference surface, detection log, and downloadable CSV/JSON/PDF reports."],
-        ].map(([num, title, desc]) => (
-          <div key={num} style={{
-            display: "flex", gap: 14, alignItems: "flex-start",
-            background: "#0a1624", border: "1px solid #18283e",
-            borderRadius: 8, padding: "12px 14px",
+          ["☁️", "Cloud cover", "Thick cloud or cloud shadow in either image produces false change signals in those areas. Pre-filter scenes for <20% cloud cover where possible."],
+          ["🌫️", "Haze and atmospheric variation", "Haze, dust, or differential atmospheric scattering alter per-pixel intensities, especially in blue/green bands. Normalization helps but cannot fully correct heterogeneous haze."],
+          ["🌿", "Seasonal vegetation changes", "Leaf-on vs leaf-off, crop cycles, and phenological shifts create widespread spectral differences that may be flagged as change. Profile tuning (Agriculture) mitigates this but cannot eliminate it."],
+          ["📷", "Sensor / resolution mismatch", "Different sensors (Landsat vs Sentinel, or different camera systems) produce different MTF, band response, and noise characteristics. Resampling and normalization reduce but cannot remove these artifacts."],
+          ["📍", "No georeferencing without coordinates", "Pixel coordinates are reported as image-relative (x, y) unless the user provides top-left and bottom-right lat/lng bounds. Without those, no geographic conversion is possible."],
+          ["🔄", "Translational registration only", "The alignment step corrects for x/y translation (shift) only. It does not handle rotation, scale change, homography, or terrain relief distortion. Significant viewpoint changes will cause misregistration artifacts."],
+        ].map(([icon, title, desc]) => (
+          <div key={title} style={{
+            display: "flex", gap: 12,
+            padding: "10px 0",
+            borderBottom: "1px solid #12293d",
           }}>
-            <div style={{
-              width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
-              background: "rgba(56,189,248,0.1)", border: "1px solid rgba(56,189,248,0.3)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              color: "#38bdf8", fontSize: 13, fontWeight: 800,
-            }}>{num}</div>
+            <span style={{ fontSize: 14, flexShrink: 0, marginTop: 1 }}>{icon}</span>
             <div>
-              <div style={{ color: "#e8f2ff", fontWeight: 700, fontSize: 13, marginBottom: 3 }}>{title}</div>
-              <div style={{ color: "#8ba3bd", fontSize: 13, lineHeight: 1.6 }}>{desc}</div>
+              <span style={{ color: "#e8f2ff", fontWeight: 700, fontSize: 13 }}>{title}</span>
+              <div style={{ color: "#6b8099", fontSize: 12, lineHeight: 1.6, marginTop: 2 }}>{desc}</div>
             </div>
           </div>
         ))}
@@ -53,5 +138,54 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
     }}>
       {children}
     </h2>
+  );
+}
+
+function ModeCard({ title, trigger, triggerColor, description, details }: {
+  title: string; trigger: string; triggerColor: string;
+  description: string; details: string[];
+}) {
+  return (
+    <div style={{
+      background: "#0a1624", border: "1px solid #18283e", borderRadius: 8,
+      padding: "16px 18px",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        <span style={{ color: "#e8f2ff", fontSize: 14, fontWeight: 800 }}>{title}</span>
+        <span style={{
+          padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 800,
+          background: `${triggerColor}18`, color: triggerColor,
+          fontFamily: "monospace",
+        }}>{trigger}</span>
+      </div>
+      <p style={{ color: "#8ba3bd", fontSize: 13, lineHeight: 1.6, margin: "0 0 10px 0" }}>{description}</p>
+      <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
+        {details.map((d, i) => (
+          <li key={i} style={{
+            color: "#6b8099", fontSize: 12, padding: "2px 0",
+          }}>▸ {d}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function TH({ children }: { children: React.ReactNode }) {
+  return (
+    <th style={{
+      padding: "10px 8px", textAlign: "left",
+      color: "#4a6a85", fontSize: 11, fontWeight: 800,
+      letterSpacing: "0.08em", textTransform: "uppercase",
+    }}>
+      {children}
+    </th>
+  );
+}
+
+function TD({ children }: { children: React.ReactNode }) {
+  return (
+    <td style={{ padding: "10px 8px", color: "#9fb5cc", fontFamily: "monospace", fontSize: 12 }}>
+      {children}
+    </td>
   );
 }

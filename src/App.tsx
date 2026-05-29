@@ -40,10 +40,13 @@ export default function App() {
   const [falsePositiveFilter, setFalsePositiveFilter] = useState(0);
   const [secureMode, setSecureMode] = useState(false);
   const [classificationLevel, setClassificationLevel] = useState<string>("UNCLASSIFIED");
-  const [analystName] = useState("");
+  const [analystName, setAnalystName] = useState("");
   const [analystOrg] = useState("");
   const [caseReference] = useState("");
-  const [sidebarOpen, setSidebarOpen] = useState(() => localStorage.getItem("sidemenu") !== "closed");
+  const [reportId, setReportId] = useState("");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem("drishti_sidebar_collapsed") === "true");
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   // ── Upload state ──
   const [file1, setFile1] = useState<File | null>(null);
@@ -57,6 +60,25 @@ export default function App() {
   // ── Analysis state ──
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState<{ pct: number; stage: number; startTime: number } | null>(null);
+
+  const STAGES = [
+    "Normalizing images…",
+    "Registering T1 → T2…",
+    "Computing SSIM…",
+    "Detecting change regions…",
+    "Scoring & filtering…",
+    "Generating report…",
+  ];
+
+  const stageForPct = (pct: number) => {
+    if (pct < 15) return 0;
+    if (pct < 35) return 1;
+    if (pct < 55) return 2;
+    if (pct < 75) return 3;
+    if (pct < 90) return 4;
+    return 5;
+  };
   const [error, setError] = useState<string>("");
   const [qualityWarnings, setQualityWarnings] = useState<QualityWarning[]>([]);
   const [activeTab, setActiveTab] = useState<ActiveTab>("analyse");
@@ -93,6 +115,7 @@ export default function App() {
     setLoading(true);
     setError("");
     setQualityWarnings([]);
+    setProgress({ pct: 0, stage: 0, startTime: performance.now() });
 
     try {
       let img1: HTMLImageElement | HTMLCanvasElement;
@@ -137,7 +160,9 @@ export default function App() {
       setQualityWarnings(warnings);
 
       const startTime = performance.now();
-      const res = await analysePair(img1, img2, profile, resolution, sensitivity, minArea, showLabels, geoReferences, normalize, falsePositiveFilter);
+      const res = await analysePair(img1, img2, profile, resolution, sensitivity, minArea, showLabels, geoReferences, normalize, falsePositiveFilter, (pct) => {
+        setProgress({ pct, stage: stageForPct(pct), startTime });
+      });
       const processingTimeMs = Math.round(performance.now() - startTime);
 
       const geoBounds = parseGeoBounds(topLeftCoord, bottomRightCoord);
@@ -152,6 +177,8 @@ export default function App() {
           d.geoCenter = [lat, lng];
         });
       }
+      const newReportId = `DRS-${Array.from({ length: 6 }, () => "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"[Math.floor(Math.random() * 36)]).join("")}`;
+      setReportId(newReportId);
       setResult({ ...res, timeline });
 
       const entry: AuditLogEntry = {
@@ -171,6 +198,7 @@ export default function App() {
       setError("Analysis failed. Please check your images and try again.");
     } finally {
       setLoading(false);
+      setProgress(null);
     }
   }, [file1, file2, useDemo, profile, resolution, sensitivity, minArea, showLabels, currentSignature]);
 
@@ -212,12 +240,34 @@ export default function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  useEffect(() => {
+    const onResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (mobile && !sidebarCollapsed) {
+        setSidebarCollapsed(true);
+        localStorage.setItem("drishti_sidebar_collapsed", "true");
+      }
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [sidebarCollapsed]);
+
+  const toggleCollapse = () => {
+    setSidebarCollapsed(c => {
+      const next = !c;
+      localStorage.setItem("drishti_sidebar_collapsed", next ? "true" : "false");
+      return next;
+    });
+  };
+
   const preliminaryReview = result ? isPreliminaryReview(result) : false;
   const highFlagCount = result ? countVisualFlagRegions(result.detections) : 0;
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#080d16" }}>
-      {sidebarOpen && (
+      {/* Desktop sidebar */}
+      {!isMobile && (
         <Sidebar
           resolution={resolution} setResolution={setResolution}
           sensitivity={sensitivity} setSensitivity={setSensitivity}
@@ -229,25 +279,72 @@ export default function App() {
           falsePositiveFilter={falsePositiveFilter} setFalsePositiveFilter={setFalsePositiveFilter}
           secureMode={secureMode} setSecureMode={setSecureMode}
           classificationLevel={classificationLevel} setClassificationLevel={setClassificationLevel}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={toggleCollapse}
+          disabled={loading}
         />
       )}
 
-      <div style={{
-        width: 32, minWidth: 32,
-        display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
-        paddingTop: 16, background: "#0a1624", borderRight: "1px solid #18283e",
-        cursor: "pointer",
-      }} onClick={() => {
-        setSidebarOpen(o => { localStorage.setItem("sidemenu", o ? "closed" : "open"); return !o; });
-      }} title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}>
-        <span style={{ fontSize: 16, color: "#4a6a85", transform: sidebarOpen ? "rotate(180deg)" : "none", display: "block", lineHeight: 1 }}>◀</span>
-        <span style={{ fontSize: 10, color: "#3a5a7a", writingMode: "vertical-rl", textOrientation: "mixed", lineHeight: 1.2, letterSpacing: "0.2em" }}>
-          {sidebarOpen ? "HIDE" : "MENU"}
-        </span>
-      </div>
+      {/* Mobile overlay backdrop */}
+      {isMobile && mobileSidebarOpen && (
+        <div
+          style={{
+            position: "fixed", inset: 0, zIndex: 998,
+            background: "rgba(0,0,0,0.55)",
+          }}
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      )}
+
+      {/* Mobile sidebar drawer */}
+      {isMobile && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, bottom: 0, zIndex: 999,
+          transform: mobileSidebarOpen ? "translateX(0)" : "translateX(-100%)",
+          transition: "transform 0.25s ease",
+          boxShadow: mobileSidebarOpen ? "4px 0 24px rgba(0,0,0,0.4)" : "none",
+        }}>
+          <Sidebar
+            resolution={resolution} setResolution={setResolution}
+            sensitivity={sensitivity} setSensitivity={setSensitivity}
+            minArea={minArea} setMinArea={setMinArea}
+            profile={profile} setProfile={setProfile}
+            showLabels={showLabels} setShowLabels={setShowLabels}
+            showHeatmap={showHeatmap} setShowHeatmap={setShowHeatmap}
+            normalize={normalize} setNormalize={setNormalize}
+            falsePositiveFilter={falsePositiveFilter} setFalsePositiveFilter={setFalsePositiveFilter}
+            secureMode={secureMode} setSecureMode={setSecureMode}
+            classificationLevel={classificationLevel} setClassificationLevel={setClassificationLevel}
+            collapsed={false}
+            onToggleCollapse={() => setMobileSidebarOpen(false)}
+            disabled={loading}
+          />
+        </div>
+      )}
+
+      {/* Mobile menu button */}
+      {isMobile && !mobileSidebarOpen && (
+        <button
+          onClick={() => setMobileSidebarOpen(true)}
+          style={{
+            position: "fixed", top: 12, left: 12, zIndex: 100,
+            width: 36, height: 36, borderRadius: 8, border: "1px solid #18283e",
+            background: "#0a1624", color: "#7dd3fc", cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 18,
+          }}
+          title="Open menu"
+        >
+          ☰
+        </button>
+      )}
 
       {/* Main content */}
-      <main style={{ flex: 1, minWidth: 0, overflowY: "auto", padding: "24px 28px", maxWidth: sidebarOpen ? "calc(100vw - 300px)" : "calc(100vw - 64px)" }}>
+      <main style={{
+        flex: 1, minWidth: 0, overflowY: "auto",
+        padding: isMobile ? "56px 14px 24px" : "24px 28px",
+        maxWidth: isMobile ? "100vw" : sidebarCollapsed ? "calc(100vw - 84px)" : "calc(100vw - 300px)",
+      }}>
 
         {/* Hero */}
         <div className="hero-header">
@@ -314,12 +411,14 @@ export default function App() {
                 sublabel="The reference image taken before changes"
                 file={file1} onFile={handleFile1}
                 previewUrl={preview1}
+                disabled={loading}
               />
               <UploadZone
                 label="T2 — Recent Image"
                 sublabel="The comparison image taken after potential changes"
                 file={file2} onFile={handleFile2}
                 previewUrl={preview2}
+                disabled={loading}
               />
             </div>
 
@@ -410,7 +509,7 @@ export default function App() {
             </div>
 
             {/* Loading skeleton */}
-            {loading && <LoadingStage />}
+            {loading && <ProgressPanel stages={STAGES} progress={progress} />}
 
             {/* No result yet */}
             {!loading && !result && !error && (
@@ -745,6 +844,39 @@ export default function App() {
 
                 {/* Export */}
                 <SectionHeader label="Export Report" />
+                <div style={{
+                  display: "flex", gap: 12, alignItems: "center", marginBottom: 16, flexWrap: "wrap",
+                }}>
+                  <input
+                    value={analystName}
+                    onChange={e => setAnalystName(e.target.value)}
+                    placeholder="Enter analyst name"
+                    style={{
+                      flex: "1 1 200px", minWidth: 180,
+                      background: "#0a1624", border: "1px solid #18283e",
+                      borderRadius: 6, padding: "8px 12px",
+                      color: "#e8f2ff", fontSize: 13, outline: "none",
+                      fontFamily: "inherit",
+                    }}
+                  />
+                  {reportId && (
+                    <div
+                      onClick={() => navigator.clipboard.writeText(reportId)}
+                      title="Click to copy"
+                      style={{
+                        display: "inline-flex", alignItems: "center", gap: 6,
+                        background: "rgba(56,189,248,0.08)", border: "1px solid rgba(56,189,248,0.25)",
+                        borderRadius: 6, padding: "6px 12px",
+                        color: "#7dd3fc", fontSize: 13, fontWeight: 700,
+                        cursor: "pointer", fontFamily: "monospace", letterSpacing: "0.06em",
+                        userSelect: "none",
+                      }}
+                    >
+                      <span>{reportId}</span>
+                      <span style={{ fontSize: 12, color: "#4a6a85" }}>📋</span>
+                    </div>
+                  )}
+                </div>
                 <ExportSection
                   result={result}
                   validationMetrics={buildValidationMetrics(result, validationGroundTruth)}
@@ -753,6 +885,7 @@ export default function App() {
                   analystName={analystName}
                   analystOrg={analystOrg}
                   caseReference={caseReference}
+                  reportId={reportId}
                 />
 
                 <AuditLogPanel
@@ -805,53 +938,65 @@ function PreliminaryNotice({ children }: { children: React.ReactNode }) {
   );
 }
 
-function LoadingStage() {
-  const stages = [
-    "Aligning images",
-    "Computing change surface",
-    "Extracting review zones",
-    "Scoring review regions",
-  ];
-  const [stageIdx, setStageIdx] = useState(0);
-  const [pct, setPct] = useState(0);
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setPct(p => {
-        if (p >= 100) { setStageIdx(i => (i + 1) % stages.length); return 0; }
-        return p + 4;
-      });
-    }, 160);
-    return () => clearInterval(interval);
-  }, []);
-
-  const currentStage = stages[stageIdx];
-  const nextStage = stages[(stageIdx + 1) % stages.length];
+function ProgressPanel({ stages, progress }: { stages: string[]; progress: { pct: number; stage: number; startTime: number } | null }) {
+  const elapsed = progress ? Math.round(performance.now() - progress.startTime) : 0;
 
   return (
     <div style={{
       display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-      padding: "60px 40px", gap: 20,
+      padding: "50px 40px", gap: 20,
       background: "#0a1624", border: "1px solid #18283e",
       borderRadius: 8,
     }}>
-      <SpinnerIcon size={36} />
-      <div style={{ color: "#7db7e5", fontSize: 14, fontWeight: 600 }}>Running profile-aware change analysis…</div>
-      <div style={{ width: "100%", maxWidth: 360 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-          <span style={{ color: "#38bdf8", fontSize: 12, fontWeight: 700 }}>{currentStage}</span>
-          <span style={{ color: "#4a6a85", fontSize: 12 }}>{pct}%</span>
-        </div>
-        <div style={{ width: "100%", height: 6, background: "#18283e", borderRadius: 3, overflow: "hidden" }}>
+      <div style={{ color: "#7db7e5", fontSize: 14, fontWeight: 700 }}>Running analysis…</div>
+      <div style={{ width: "100%", maxWidth: 420 }}>
+        <div style={{
+          width: "100%", height: 8, background: "#18283e", borderRadius: 4, overflow: "hidden",
+          marginBottom: 12,
+        }}>
           <div style={{
-            width: `${pct}%`, height: "100%",
+            width: `${progress?.pct ?? 0}%`, height: "100%",
             background: "linear-gradient(90deg, #38bdf8, #7dd3fc)",
-            borderRadius: 3, transition: "width 0.15s ease",
+            borderRadius: 4, transition: "width 0.2s ease",
           }} />
         </div>
-        <div style={{ color: "#4a6a85", fontSize: 11, marginTop: 4 }}>Next: {nextStage}</div>
+        {stages.map((label, i) => {
+          const done = (progress?.pct ?? 0) >= stagePctBoundary(i + 1);
+          const active = progress?.stage === i;
+          return (
+            <div key={i} style={{
+              display: "flex", alignItems: "center", gap: 10, padding: "6px 0",
+              color: done ? "#34d399" : active ? "#e0f2fe" : "#4a6a85",
+              fontWeight: done || active ? 700 : 400,
+              fontSize: 13,
+              transition: "color 0.3s ease",
+            }}>
+              <span style={{ fontSize: 14 }}>{done ? "✅" : active ? "⏳" : "⏺"}</span>
+              <span>{label}</span>
+              {active && (
+                <span style={{ marginLeft: "auto", color: "#38bdf8", fontSize: 12, fontWeight: 700 }}>
+                  {Math.round(progress?.pct ?? 0)}%
+                </span>
+              )}
+              {done && i === stages.length - 1 && (
+                <span style={{ marginLeft: "auto", color: "#34d399", fontSize: 12, fontWeight: 600 }}>
+                  {elapsed}ms
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ color: "#4a6a85", fontSize: 12, fontFamily: "monospace" }}>
+        {elapsed}ms elapsed
       </div>
     </div>
   );
+
+  function stagePctBoundary(stage: number) {
+    const boundaries = [0, 15, 35, 55, 75, 90, 100];
+    return boundaries[stage] ?? 100;
+  }
 }
 
 function SceneComparabilityCard({ result }: { result: AnalysisResult }) {

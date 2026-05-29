@@ -45,6 +45,7 @@ export default function ExportSection({
   analystName = "",
   analystOrg = "",
   caseReference = "",
+  reportId = "",
 }: {
   result: AnalysisResult;
   validationMetrics: ValidationMetricsReport;
@@ -53,6 +54,7 @@ export default function ExportSection({
   analystName?: string;
   analystOrg?: string;
   caseReference?: string;
+  reportId?: string;
 }) {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [jsonOpen, setJsonOpen] = useState(false);
@@ -63,6 +65,7 @@ export default function ExportSection({
   const exportPayload = {
     ...result,
     reportMetadata: {
+      reportId,
       analyst: analystName,
       organization: analystOrg,
       caseReference,
@@ -86,7 +89,14 @@ export default function ExportSection({
 
   const downloadCSV = () => {
     if (!result.detections.length) {
-      downloadBlob("id,type,priority,score,area_px,geo_center,geo_bbox,area_m2,assessment,analyst_decision,analyst_notes,reviewed_status,ssim,sceneComparability,reliability,preliminaryMode,manualVerificationRequired,detectionsAreConfirmed,visibleRegionLimit,totalReviewRegions\n", "satellite_detection_log.csv", "text/csv");
+      const metaCsv = [
+        `# Report ID,${quoteCSV(reportId)}`,
+        `# Analyst,${quoteCSV(analystName || "Unnamed")}`,
+        `# Generated,${quoteCSV(result.timestampUtc)}`,
+        "",
+        "id,type,priority,score,area_px,assessment,analyst_decision,analyst_notes,reviewed_status,ssim,sceneComparability,reliability\n",
+      ].join("\n");
+      downloadBlob(metaCsv, "satellite_detection_log.csv", "text/csv");
       return;
     }
     const headers = ["id", "type", "priority", "score", "areaPx", "compactness", "meanDelta", "pixelCenter", "geo_center", "geo_bbox", "area_m2", "gridRef", "assessment", "analyst_decision", "analyst_notes", "reviewed_status", "ssim", "sceneComparability", "reliability", "preliminaryMode", "manualVerificationRequired", "detectionsAreConfirmed", "visibleRegionLimit", "totalReviewRegions"];
@@ -118,7 +128,14 @@ export default function ExportSection({
         result.totalReviewRegions,
       ].join(",")
     );
-    downloadBlob([headers.join(","), ...rows].join("\n"), "satellite_detection_log.csv", "text/csv");
+    const metaRows = [
+      `# Report ID,${quoteCSV(reportId)}`,
+      `# Analyst,${quoteCSV(analystName || "Unnamed")}`,
+      `# Generated,${quoteCSV(result.timestampUtc)}`,
+      `# Profile,${quoteCSV(result.profile)}`,
+      "",
+    ];
+    downloadBlob([...metaRows, headers.join(","), ...rows].join("\n"), "satellite_detection_log.csv", "text/csv");
   };
 
   const downloadAnnotated = () => {
@@ -196,6 +213,7 @@ export default function ExportSection({
       doc.line(ML, y, ML + TW, y);
       gap(5);
 
+      line(`Report ID: ${reportId || "N/A"}`, 9, false, [139, 163, 189]);
       line(`Document ID: ${headerId}`, 9, false, [139, 163, 189]);
       line(`Analyst: ${analystName || "Unnamed"}`, 9, false, [139, 163, 189]);
       line(`Organization: ${analystOrg || "N/A"}`, 9, false, [139, 163, 189]);
