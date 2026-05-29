@@ -1,15 +1,15 @@
 # 🛰️ Drishti AI
 
-![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)
-![TypeScript](https://img.shields.io/badge/TypeScript-97%25-3178C6?logo=typescript)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-97%25-3178C6?logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-Build-646CFF?logo=vite&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green)
-![Status](https://img.shields.io/badge/Status-Active-brightgreen)
-![Offline](https://img.shields.io/badge/Runs-Offline-blue)
+![Live](https://img.shields.io/badge/Live-Vercel-black?logo=vercel)
 
 > Browser-native satellite change detection.
 > No server. No ML dependencies. Zero data egress.
 
-## Live Demo
+## 🌐 Live Demo
 [https://dhristi-ai.vercel.app](https://dhristi-ai.vercel.app)
 
 ## What it does
